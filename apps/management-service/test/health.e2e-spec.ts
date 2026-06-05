@@ -1,25 +1,59 @@
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 
 import {
   AppLoggerService,
   CorrelationIdInterceptor,
-  GlobalHttpExceptionFilter
+  GlobalHttpExceptionFilter,
+  SERVICE_ENVIRONMENT
 } from '@supermarket/shared-infra';
 
-import { ManagementServiceModule } from '../src/management-service.module';
+import { HealthController } from '../src/interfaces/http/health.controller';
 
 describe('management-service health endpoint', () => {
   let application: INestApplication;
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
-      imports: [ManagementServiceModule]
+      controllers: [HealthController],
+      providers: [
+        AppLoggerService,
+        {
+          provide: SERVICE_ENVIRONMENT,
+          useValue: {
+            nodeEnvironment: 'test',
+            serviceName: 'management-service',
+            appVersion: '0.1.0',
+            servicePort: 3003,
+            database: {
+              host: 'localhost',
+              port: 5435,
+              name: 'management_service',
+              user: 'management_user',
+              password: 'management_password',
+              ssl: false
+            },
+            kafka: {
+              brokers: ['localhost:19092'],
+              clientId: 'management-service',
+              consumerGroupId: 'management-service'
+            }
+          }
+        }
+      ]
     }).compile();
 
     application = moduleFixture.createNestApplication();
 
+    application.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true
+      })
+    );
     application.useGlobalInterceptors(new CorrelationIdInterceptor());
     application.useGlobalFilters(new GlobalHttpExceptionFilter(application.get(AppLoggerService)));
 

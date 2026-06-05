@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 
 import type { TenantScoped } from '../identifiers/tenant-scoped.interface';
 
-export type EventPayload = TenantScoped & Record<string, unknown>;
+export type EventPayload = TenantScoped;
 
 export interface EventEnvelope<TPayload extends EventPayload = EventPayload> {
   eventId: string;
