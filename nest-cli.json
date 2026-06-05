@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "monorepo": true,
+  "root": "apps/checkout-service",
+  "sourceRoot": "apps/checkout-service/src",
+  "compilerOptions": {
+    "webpack": false,
+    "deleteOutDir": false,
+    "tsConfigPath": "apps/checkout-service/tsconfig.app.json"
+  },
+  "projects": {
+    "checkout-service": {
+      "type": "application",
+      "root": "apps/checkout-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/checkout-service/src",
+      "compilerOptions": {
+        "webpack": true,
+        "tsConfigPath": "apps/checkout-service/tsconfig.app.json"
+      }
+    },
+    "inventory-service": {
+      "type": "application",
+      "root": "apps/inventory-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/inventory-service/src",
+      "compilerOptions": {
+        "webpack": true,
+        "tsConfigPath": "apps/inventory-service/tsconfig.app.json"
+      }
+    },
+    "management-service": {
+      "type": "application",
+      "root": "apps/management-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/management-service/src",
+      "compilerOptions": {
+        "webpack": true,
+        "tsConfigPath": "apps/management-service/tsconfig.app.json"
+      }
+    },
+    "shared-domain": {
+      "type": "library",
+      "root": "libs/shared-domain",
+      "entryFile": "index",
+      "sourceRoot": "libs/shared-domain/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/shared-domain/tsconfig.lib.json"
+      }
+    },
+    "shared-infra": {
+      "type": "library",
+      "root": "libs/shared-infra",
+      "entryFile": "index",
+      "sourceRoot": "libs/shared-infra/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/shared-infra/tsconfig.lib.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "supermarket-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant supermarket microservices ecosystem",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.8.0"
+  },
+  "scripts": {
+    "clean": "rimraf coverage dist",
+    "build": "npm run build:all",
+    "build:all": "npm run clean && npm run build:shared-domain && npm run build:shared-infra && nest build checkout-service && nest build inventory-service && nest build management-service",
+    "build:shared-domain": "tsc -p libs/shared-domain/tsconfig.lib.json",
+    "build:shared-infra": "tsc -p libs/shared-infra/tsconfig.lib.json",
+    "build:checkout-service": "nest build checkout-service",
+    "build:inventory-service": "nest build inventory-service",
+    "build:management-service": "nest build management-service",
+    "start:checkout-service": "nest start checkout-service",
+    "start:inventory-service": "nest start inventory-service",
+    "start:management-service": "nest start management-service",
+    "start:dev:checkout-service": "nest start checkout-service --watch",
+    "start:dev:inventory-service": "nest start inventory-service --watch",
+    "start:dev:management-service": "nest start management-service --watch",
+    "test": "jest --selectProjects unit",
+    "test:watch": "jest --selectProjects unit --watch",
+    "test:e2e": "jest --selectProjects e2e",
+    "test:cov": "jest --selectProjects unit --coverage"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.24",
+    "@nestjs/core": "^11.1.24",
+    "@nestjs/microservices": "^11.1.24",
+    "@nestjs/platform-express": "^11.1.24",
+    "@nestjs/typeorm": "^11.0.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.21.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^1.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.21",
+    "@nestjs/testing": "^11.1.24",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.2",
+    "@types/supertest": "^7.2.0",
+    "jest": "^30.4.2",
+    "rimraf": "^6.1.3",
+    "supertest": "^7.2.2",
+    "testcontainers": "^12.0.1",
+    "ts-jest": "^29.4.11",
+    "ts-loader": "^9.6.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^6.0.3"
+  }
+}
