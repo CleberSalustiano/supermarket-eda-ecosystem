@@ -8,7 +8,7 @@ import {
   GlobalHttpExceptionFilter
 } from '@supermarket/shared-infra';
 
-import { CheckoutServiceModule } from '../../src/checkout-service.module';
+import { CheckoutServiceModule } from '#/checkout-service.module';
 
 describe('checkout-service health endpoint', () => {
   let application: INestApplication;

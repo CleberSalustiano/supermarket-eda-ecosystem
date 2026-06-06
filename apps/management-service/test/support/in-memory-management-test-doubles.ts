@@ -1,22 +1,22 @@
 import type { EventEnvelope, EventPayload } from '@supermarket/shared-domain';
 
-import { Employee } from '../../src/domain/entities/employee.entity';
-import { Product } from '../../src/domain/entities/product.entity';
+import { Employee } from '#/domain/entities/employee.entity';
+import { Product } from '#/domain/entities/product.entity';
 import type {
   CredentialHasherPort
-} from '../../src/application/ports/credential-hasher.port';
+} from '#/application/ports/credential-hasher.port';
 import type {
   ManagementTransactionContext,
   ManagementTransactionRunnerPort
-} from '../../src/application/ports/management-transaction-runner.port';
-import type { OutboxEventRelayPort } from '../../src/application/ports/outbox-event-relay.port';
+} from '#/application/ports/management-transaction-runner.port';
+import type { OutboxEventRelayPort } from '#/application/ports/outbox-event-relay.port';
 import type {
   OutboxEventRepositoryPort,
   StoredOutboxEvent
-} from '../../src/application/ports/outbox-event-repository.port';
-import type { EmployeeRepositoryPort } from '../../src/domain/repositories/employee.repository';
-import type { ProductRepositoryPort } from '../../src/domain/repositories/product.repository';
-import type { IntegrationEventPublicationStatus } from '../../src/application/dto/integration-event-publication-status';
+} from '#/application/ports/outbox-event-repository.port';
+import type { EmployeeRepositoryPort } from '#/domain/repositories/employee.repository';
+import type { ProductRepositoryPort } from '#/domain/repositories/product.repository';
+import type { IntegrationEventPublicationStatus } from '#/application/dto/integration-event-publication-status';
 
 export class InMemoryProductRepository implements ProductRepositoryPort {
   private readonly items = new Map<string, Product>();

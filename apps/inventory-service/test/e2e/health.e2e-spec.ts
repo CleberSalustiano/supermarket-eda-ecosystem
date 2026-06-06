@@ -8,7 +8,7 @@ import {
   GlobalHttpExceptionFilter
 } from '@supermarket/shared-infra';
 
-import { InventoryServiceModule } from '../../src/inventory-service.module';
+import { InventoryServiceModule } from '#/inventory-service.module';
 
 describe('inventory-service health endpoint', () => {
   let application: INestApplication;

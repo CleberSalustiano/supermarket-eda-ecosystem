@@ -1,6 +1,6 @@
 import { ConflictError } from '@supermarket/shared-domain';
 
-import { RegisterProductUseCase } from '../../../../src/application/use-cases/register-product.use-case';
+import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
 import {
   FakeOutboxEventRelay,
   InMemoryManagementTransactionRunner

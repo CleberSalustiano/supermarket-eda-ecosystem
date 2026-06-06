@@ -1,7 +1,7 @@
 import { ResourceNotFoundError } from '@supermarket/shared-domain';
 
-import { RegisterProductUseCase } from '../../../../src/application/use-cases/register-product.use-case';
-import { UpdateProductPriceUseCase } from '../../../../src/application/use-cases/update-product-price.use-case';
+import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
+import { UpdateProductPriceUseCase } from '#/application/use-cases/update-product-price.use-case';
 import {
   FakeOutboxEventRelay,
   InMemoryManagementTransactionRunner

@@ -1,6 +1,6 @@
 import { ConflictError, EmployeeRole } from '@supermarket/shared-domain';
 
-import { RegisterEmployeeUseCase } from '../../../../src/application/use-cases/register-employee.use-case';
+import { RegisterEmployeeUseCase } from '#/application/use-cases/register-employee.use-case';
 import {
   FakeCredentialHasher,
   FakeOutboxEventRelay,
