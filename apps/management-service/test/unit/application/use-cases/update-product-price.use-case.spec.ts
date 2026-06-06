@@ -1,11 +1,11 @@
 import { ResourceNotFoundError } from '@supermarket/shared-domain';
 
-import { RegisterProductUseCase } from './register-product.use-case';
-import { UpdateProductPriceUseCase } from './update-product-price.use-case';
+import { RegisterProductUseCase } from '../../../../src/application/use-cases/register-product.use-case';
+import { UpdateProductPriceUseCase } from '../../../../src/application/use-cases/update-product-price.use-case';
 import {
   FakeOutboxEventRelay,
   InMemoryManagementTransactionRunner
-} from '../../../test/support/in-memory-management-test-doubles';
+} from '../../../support/in-memory-management-test-doubles';
 
 describe('UpdateProductPriceUseCase', () => {
   it('updates the current product price and emits a new event', async () => {

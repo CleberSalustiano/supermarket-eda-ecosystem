@@ -10,7 +10,7 @@ import {
   SERVICE_ENVIRONMENT
 } from '@supermarket/shared-infra';
 
-import { HealthController } from '../src/interfaces/http/health.controller';
+import { HealthController } from '../../src/interfaces/http/health.controller';
 
 describe('management-service health endpoint', () => {
   let application: INestApplication;

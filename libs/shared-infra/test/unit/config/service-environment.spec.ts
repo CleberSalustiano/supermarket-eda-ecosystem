@@ -1,4 +1,4 @@
-import { createServiceEnvironment } from './service-environment';
+import { createServiceEnvironment } from '../../../src/config/service-environment';
 
 const defaultEnvironment = {
   serviceName: 'checkout-service',

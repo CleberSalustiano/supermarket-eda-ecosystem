@@ -1,11 +1,11 @@
 import { ConflictError, EmployeeRole } from '@supermarket/shared-domain';
 
-import { RegisterEmployeeUseCase } from './register-employee.use-case';
+import { RegisterEmployeeUseCase } from '../../../../src/application/use-cases/register-employee.use-case';
 import {
   FakeCredentialHasher,
   FakeOutboxEventRelay,
   InMemoryManagementTransactionRunner
-} from '../../../test/support/in-memory-management-test-doubles';
+} from '../../../support/in-memory-management-test-doubles';
 
 describe('RegisterEmployeeUseCase', () => {
   it('registers an employee, hashes the PIN, and queues the integration event', async () => {

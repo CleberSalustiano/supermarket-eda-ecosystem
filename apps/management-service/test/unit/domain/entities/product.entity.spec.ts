@@ -1,6 +1,6 @@
 import { DomainValidationError } from '@supermarket/shared-domain';
 
-import { Product } from './product.entity';
+import { Product } from '../../../../src/domain/entities/product.entity';
 
 describe('Product', () => {
   it('registers a valid product with normalized price and unit of measure', () => {

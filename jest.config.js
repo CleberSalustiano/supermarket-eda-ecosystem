@@ -12,7 +12,7 @@ module.exports = {
       preset: 'ts-jest',
       rootDir: '.',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/{apps,libs}/**/*.spec.ts'],
+      testMatch: ['<rootDir>/{apps,libs}/**/test/**/*.spec.ts'],
       testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
       transform: {
         '^.+\\.ts$': [
@@ -32,7 +32,7 @@ module.exports = {
       preset: 'ts-jest',
       rootDir: '.',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/apps/**/*.e2e-spec.ts'],
+      testMatch: ['<rootDir>/apps/**/test/**/*.e2e-spec.ts'],
       transform: {
         '^.+\\.ts$': [
           'ts-jest',

@@ -1,6 +1,6 @@
 import { DomainValidationError, EmployeeRole } from '@supermarket/shared-domain';
 
-import { Employee } from './employee.entity';
+import { Employee } from '../../../../src/domain/entities/employee.entity';
 
 describe('Employee', () => {
   it('registers a valid employee with a normalized code', () => {
