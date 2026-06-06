@@ -1,10 +1,10 @@
 import { ConflictError } from '@supermarket/shared-domain';
 
-import { RegisterProductUseCase } from './register-product.use-case';
+import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
 import {
   FakeOutboxEventRelay,
   InMemoryManagementTransactionRunner
-} from '../../../test/support/in-memory-management-test-doubles';
+} from '../../../support/in-memory-management-test-doubles';
 
 describe('RegisterProductUseCase', () => {
   it('registers a product and queues its integration event', async () => {

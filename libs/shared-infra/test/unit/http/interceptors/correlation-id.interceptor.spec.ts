@@ -1,4 +1,4 @@
-import { resolveCorrelationId } from './correlation-id.interceptor';
+import { resolveCorrelationId } from '#/http/interceptors/correlation-id.interceptor';
 
 describe('resolveCorrelationId', () => {
   it('reuses an incoming correlation id', () => {

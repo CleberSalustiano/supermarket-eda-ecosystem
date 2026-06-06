@@ -1,4 +1,4 @@
-import { createEventEnvelope } from './event-envelope';
+import { createEventEnvelope } from '#/events/event-envelope';
 
 describe('createEventEnvelope', () => {
   it('creates an envelope with generated metadata', () => {

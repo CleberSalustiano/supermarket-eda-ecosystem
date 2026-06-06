@@ -14,25 +14,25 @@ import {
   SERVICE_ENVIRONMENT
 } from '@supermarket/shared-infra';
 
-import { RegisterEmployeeUseCase } from '../src/application/use-cases/register-employee.use-case';
-import { RegisterProductUseCase } from '../src/application/use-cases/register-product.use-case';
-import { UpdateProductPriceUseCase } from '../src/application/use-cases/update-product-price.use-case';
-import { CREDENTIAL_HASHER } from '../src/application/ports/credential-hasher.port';
-import { MANAGEMENT_EVENT_PUBLISHER } from '../src/application/ports/management-event-publisher.port';
-import { MANAGEMENT_TRANSACTION_RUNNER } from '../src/application/ports/management-transaction-runner.port';
-import { OUTBOX_EVENT_RELAY } from '../src/application/ports/outbox-event-relay.port';
-import { OUTBOX_EVENT_REPOSITORY } from '../src/application/ports/outbox-event-repository.port';
-import { ReliableOutboxEventRelayService } from '../src/infrastructure/events/reliable-outbox-event-relay.service';
-import { managementTypeormEntities } from '../src/infrastructure/persistence/typeorm/entities/management-typeorm-entities';
-import { OutboxEventTypeormEntity } from '../src/infrastructure/persistence/typeorm/entities/outbox-event.typeorm-entity';
-import { ProductTypeormEntity } from '../src/infrastructure/persistence/typeorm/entities/product.typeorm-entity';
-import { EmployeeTypeormEntity } from '../src/infrastructure/persistence/typeorm/entities/employee.typeorm-entity';
-import { TypeormOutboxEventRepository } from '../src/infrastructure/persistence/typeorm/repositories/typeorm-outbox-event.repository';
-import { TypeormManagementTransactionRunner } from '../src/infrastructure/persistence/typeorm/typeorm-management-transaction-runner';
-import { ScryptCredentialHasherService } from '../src/infrastructure/security/scrypt-credential-hasher.service';
-import { EmployeesController } from '../src/interfaces/http/employees.controller';
-import { ProductsController } from '../src/interfaces/http/products.controller';
-import { HealthController } from '../src/interfaces/http/health.controller';
+import { RegisterEmployeeUseCase } from '#/application/use-cases/register-employee.use-case';
+import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
+import { UpdateProductPriceUseCase } from '#/application/use-cases/update-product-price.use-case';
+import { CREDENTIAL_HASHER } from '#/application/ports/credential-hasher.port';
+import { MANAGEMENT_EVENT_PUBLISHER } from '#/application/ports/management-event-publisher.port';
+import { MANAGEMENT_TRANSACTION_RUNNER } from '#/application/ports/management-transaction-runner.port';
+import { OUTBOX_EVENT_RELAY } from '#/application/ports/outbox-event-relay.port';
+import { OUTBOX_EVENT_REPOSITORY } from '#/application/ports/outbox-event-repository.port';
+import { ReliableOutboxEventRelayService } from '#/infrastructure/events/reliable-outbox-event-relay.service';
+import { managementTypeormEntities } from '#/infrastructure/persistence/typeorm/entities/management-typeorm-entities';
+import { OutboxEventTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/outbox-event.typeorm-entity';
+import { ProductTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/product.typeorm-entity';
+import { EmployeeTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/employee.typeorm-entity';
+import { TypeormOutboxEventRepository } from '#/infrastructure/persistence/typeorm/repositories/typeorm-outbox-event.repository';
+import { TypeormManagementTransactionRunner } from '#/infrastructure/persistence/typeorm/typeorm-management-transaction-runner';
+import { ScryptCredentialHasherService } from '#/infrastructure/security/scrypt-credential-hasher.service';
+import { EmployeesController } from '#/interfaces/http/employees.controller';
+import { ProductsController } from '#/interfaces/http/products.controller';
+import { HealthController } from '#/interfaces/http/health.controller';
 
 describe('management-service catalog flow', () => {
   let application: INestApplication;

@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../dist/test/inventory-service",
+    "outDir": "../../dist/test/shared-domain",
     "baseUrl": ".",
     "paths": {
       "#/*": [
