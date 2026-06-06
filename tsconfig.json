@@ -26,13 +26,13 @@
     ],
     "paths": {
       "@supermarket/shared-domain": [
-        "libs/shared-domain/src"
+        "libs/shared-domain/src/index.ts"
       ],
       "@supermarket/shared-domain/*": [
         "libs/shared-domain/src/*"
       ],
       "@supermarket/shared-infra": [
-        "libs/shared-infra/src"
+        "libs/shared-infra/src/index.ts"
       ],
       "@supermarket/shared-infra/*": [
         "libs/shared-infra/src/*"

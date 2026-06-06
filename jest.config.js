@@ -15,7 +15,7 @@ module.exports = {
       testMatch: ['<rootDir>/{apps,libs}/**/*.spec.ts'],
       testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
       transform: {
-        '^.+\\.(t|j)s$': [
+        '^.+\\.ts$': [
           'ts-jest',
           {
             tsconfig: '<rootDir>/tsconfig.json',
@@ -34,7 +34,7 @@ module.exports = {
       testEnvironment: 'node',
       testMatch: ['<rootDir>/apps/**/*.e2e-spec.ts'],
       transform: {
-        '^.+\\.(t|j)s$': [
+        '^.+\\.ts$': [
           'ts-jest',
           {
             tsconfig: '<rootDir>/tsconfig.json',

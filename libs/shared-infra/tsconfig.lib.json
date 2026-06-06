@@ -3,7 +3,15 @@
   "compilerOptions": {
     "declaration": true,
     "rootDir": "./src",
-    "outDir": "../../dist/libs/shared-infra"
+    "outDir": "../../dist/libs/shared-infra",
+    "paths": {
+      "@supermarket/shared-domain": [
+        "dist/libs/shared-domain/index.d.ts"
+      ],
+      "@supermarket/shared-domain/*": [
+        "dist/libs/shared-domain/*"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts"

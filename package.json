@@ -11,9 +11,10 @@
   "scripts": {
     "clean": "rimraf coverage dist",
     "build": "npm run build:all",
-    "build:all": "npm run clean && npm run build:shared-domain && npm run build:shared-infra && nest build checkout-service && nest build inventory-service && nest build management-service",
-    "build:shared-domain": "tsc -p libs/shared-domain/tsconfig.lib.json",
+    "build:all": "npm run clean && npm run build:shared-domain && npm run build:shared-infra && nest build checkout-service && nest build inventory-service && nest build management-service && npm run clean:shared-domain-artifacts",
+    "build:shared-domain": "tsc -p libs/shared-domain/tsconfig.lib.json && npm run clean:shared-domain-artifacts",
     "build:shared-infra": "tsc -p libs/shared-infra/tsconfig.lib.json",
+    "clean:shared-domain-artifacts": "rimraf --glob \"libs/shared-domain/src/**/*.js\" \"libs/shared-domain/src/**/*.js.map\" \"libs/shared-domain/src/**/*.d.ts\"",
     "build:checkout-service": "nest build checkout-service",
     "build:inventory-service": "nest build inventory-service",
     "build:management-service": "nest build management-service",
@@ -23,10 +24,10 @@
     "start:dev:checkout-service": "nest start checkout-service --watch",
     "start:dev:inventory-service": "nest start inventory-service --watch",
     "start:dev:management-service": "nest start management-service --watch",
-    "test": "jest --selectProjects unit",
+    "test": "jest --selectProjects unit && npm run clean:shared-domain-artifacts",
     "test:watch": "jest --selectProjects unit --watch",
-    "test:e2e": "jest --selectProjects e2e",
-    "test:cov": "jest --selectProjects unit --coverage"
+    "test:e2e": "jest --selectProjects e2e && npm run clean:shared-domain-artifacts",
+    "test:cov": "jest --selectProjects unit --coverage && npm run clean:shared-domain-artifacts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.24",
@@ -50,6 +51,7 @@
     "@types/node": "^25.9.2",
     "@types/supertest": "^7.2.0",
     "jest": "^30.4.2",
+    "pg-mem": "^3.0.14",
     "rimraf": "^6.1.3",
     "supertest": "^7.2.2",
     "testcontainers": "^12.0.1",

@@ -2,6 +2,12 @@ import { Catch, HttpException, HttpStatus } from '@nestjs/common';
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { Response } from 'express';
 
+import {
+  ConflictError,
+  DomainValidationError,
+  ResourceNotFoundError
+} from '@supermarket/shared-domain';
+
 import { AppLoggerService } from '../../logging/app-logger.service';
 import {
   CORRELATION_ID_CONTEXT_KEY,
@@ -25,10 +31,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
     const httpContext = host.switchToHttp();
     const request = httpContext.getRequest<RequestWithCorrelationId>();
     const response = httpContext.getResponse<Response>();
-    const statusCode =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const statusCode = resolveHttpStatusCode(exception);
     const correlationId =
       request[CORRELATION_ID_CONTEXT_KEY] ??
       resolveCorrelationId(request.headers['x-correlation-id']);
@@ -78,4 +81,24 @@ function resolveExceptionMessage(exception: unknown): string {
   }
 
   return 'Internal server error';
+}
+
+function resolveHttpStatusCode(exception: unknown): number {
+  if (exception instanceof HttpException) {
+    return exception.getStatus();
+  }
+
+  if (exception instanceof DomainValidationError) {
+    return HttpStatus.BAD_REQUEST;
+  }
+
+  if (exception instanceof ResourceNotFoundError) {
+    return HttpStatus.NOT_FOUND;
+  }
+
+  if (exception instanceof ConflictError) {
+    return HttpStatus.CONFLICT;
+  }
+
+  return HttpStatus.INTERNAL_SERVER_ERROR;
 }
