@@ -18,7 +18,7 @@ import type { ManagementTransactionRunnerPort } from '../ports/management-transa
 import { MANAGEMENT_TRANSACTION_RUNNER } from '../ports/management-transaction-runner.port';
 import type { OutboxEventRelayPort } from '../ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_RELAY } from '../ports/outbox-event-relay.port';
-import { Employee } from '../../domain/entities/employee.entity';
+import { Employee } from '#/domain/entities/employee.entity';
 
 @Injectable()
 export class RegisterEmployeeUseCase {
@@ -59,7 +59,7 @@ export class RegisterEmployeeUseCase {
         employeeState.employeeCode
       );
 
-      if (existingEmployee !== null) {
+      if (existingEmployee) {
         throw new ConflictError(
           `Employee code ${employeeState.employeeCode} is already registered for tenant ${employeeState.tenantId}`
         );

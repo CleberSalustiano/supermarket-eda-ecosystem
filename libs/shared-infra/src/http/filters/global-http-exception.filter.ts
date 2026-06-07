@@ -68,7 +68,7 @@ function resolveExceptionMessage(exception: unknown): string {
 
     if (
       typeof response === 'object' &&
-      response !== null &&
+      response &&
       'message' in response &&
       typeof response.message === 'string'
     ) {

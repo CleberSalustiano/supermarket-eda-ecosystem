@@ -1,9 +1,9 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
 
-import type { RegisterProductOutputDto } from '../../application/dto/register-product.dto';
-import type { UpdateProductPriceOutputDto } from '../../application/dto/update-product-price.dto';
-import { RegisterProductUseCase } from '../../application/use-cases/register-product.use-case';
-import { UpdateProductPriceUseCase } from '../../application/use-cases/update-product-price.use-case';
+import type { RegisterProductOutputDto } from '#/application/dto/register-product.dto';
+import type { UpdateProductPriceOutputDto } from '#/application/dto/update-product-price.dto';
+import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
+import { UpdateProductPriceUseCase } from '#/application/use-cases/update-product-price.use-case';
 import { RegisterProductRequestDto } from './dto/register-product.request.dto';
 import { UpdateProductPriceRequestDto } from './dto/update-product-price.request.dto';
 

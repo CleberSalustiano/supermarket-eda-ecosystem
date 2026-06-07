@@ -1,5 +1,5 @@
-import type { ProductRepositoryPort } from '../../../../domain/repositories/product.repository';
-import { Product } from '../../../../domain/entities/product.entity';
+import type { ProductRepositoryPort } from '#/domain/repositories/product.repository';
+import { Product } from '#/domain/entities/product.entity';
 import { ProductTypeormEntity } from '../entities/product.typeorm-entity';
 import {
   asTypeormRepositoryAccessor,
@@ -21,7 +21,7 @@ export class TypeormProductRepository implements ProductRepositoryPort {
       }
     });
 
-    return entity === null ? null : toDomain(entity);
+    return entity ? toDomain(entity) : null;
   }
 
   async findByBarcode(tenantId: string, barcode: string): Promise<Product | null> {
@@ -32,7 +32,7 @@ export class TypeormProductRepository implements ProductRepositoryPort {
       }
     });
 
-    return entity === null ? null : toDomain(entity);
+    return entity ? toDomain(entity) : null;
   }
 
   async save(product: Product): Promise<void> {

@@ -41,6 +41,14 @@ const createProjectConfig = ({
 module.exports = {
   projects: [
     createProjectConfig({
+      displayName: 'unit:checkout-service',
+      rootDir: 'apps/checkout-service',
+      testMatch: '<rootDir>/test/**/*.spec.ts',
+      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
+      tsconfig: '<rootDir>/tsconfig.spec.json',
+      coverageDirectory: path.join(__dirname, 'coverage/unit/checkout-service')
+    }),
+    createProjectConfig({
       displayName: 'unit:management-service',
       rootDir: 'apps/management-service',
       testMatch: '<rootDir>/test/**/*.spec.ts',

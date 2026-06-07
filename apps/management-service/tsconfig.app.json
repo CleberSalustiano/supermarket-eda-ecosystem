@@ -2,6 +2,24 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "declaration": false,
+    "baseUrl": ".",
+    "paths": {
+      "@supermarket/shared-domain": [
+        "../../libs/shared-domain/src/index.ts"
+      ],
+      "@supermarket/shared-domain/*": [
+        "../../libs/shared-domain/src/*"
+      ],
+      "@supermarket/shared-infra": [
+        "../../libs/shared-infra/src/index.ts"
+      ],
+      "@supermarket/shared-infra/*": [
+        "../../libs/shared-infra/src/*"
+      ],
+      "#/*": [
+        "src/*"
+      ]
+    },
     "rootDir": "../../",
     "outDir": "../../dist/apps/management-service"
   },

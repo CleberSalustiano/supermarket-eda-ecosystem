@@ -1,5 +1,5 @@
-import type { EmployeeRepositoryPort } from '../../domain/repositories/employee.repository';
-import type { ProductRepositoryPort } from '../../domain/repositories/product.repository';
+import type { EmployeeRepositoryPort } from '#/domain/repositories/employee.repository';
+import type { ProductRepositoryPort } from '#/domain/repositories/product.repository';
 import type { OutboxEventRepositoryPort } from './outbox-event-repository.port';
 
 export const MANAGEMENT_TRANSACTION_RUNNER = Symbol('MANAGEMENT_TRANSACTION_RUNNER');
