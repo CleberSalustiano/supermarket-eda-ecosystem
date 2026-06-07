@@ -1,17 +1,22 @@
-import { Injectable } from '@nestjs/common';
-
-import { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 
 import type { ProductCatalogItemRepositoryPort } from '#/domain/repositories/product-catalog-item.repository';
 import { ProductCatalogItem } from '#/domain/entities/product-catalog-item.entity';
 import { ProductCatalogItemTypeormEntity } from '../entities/product-catalog-item.typeorm-entity';
+import {
+  asTypeormRepositoryAccessor,
+  type TypeormRepositoryAccessor
+} from './typeorm-repository-accessor';
 
-@Injectable()
 export class TypeormProductCatalogItemRepository implements ProductCatalogItemRepositoryPort {
-  constructor(private readonly dataSource: DataSource) {}
+  private readonly repositoryAccessor: TypeormRepositoryAccessor;
+
+  constructor(repositoryAccessor: TypeormRepositoryAccessor | DataSource | EntityManager) {
+    this.repositoryAccessor = asTypeormRepositoryAccessor(repositoryAccessor);
+  }
 
   async findByProductId(tenantId: string, productId: string): Promise<ProductCatalogItem | null> {
-    const entity = await this.dataSource.getRepository(ProductCatalogItemTypeormEntity).findOne({
+    const entity = await this.repositoryAccessor.getRepository(ProductCatalogItemTypeormEntity).findOne({
       where: {
         productId,
         tenantId
@@ -22,7 +27,7 @@ export class TypeormProductCatalogItemRepository implements ProductCatalogItemRe
   }
 
   async findByBarcode(tenantId: string, barcode: string): Promise<ProductCatalogItem | null> {
-    const entity = await this.dataSource.getRepository(ProductCatalogItemTypeormEntity).findOne({
+    const entity = await this.repositoryAccessor.getRepository(ProductCatalogItemTypeormEntity).findOne({
       where: {
         barcode,
         tenantId
@@ -35,7 +40,7 @@ export class TypeormProductCatalogItemRepository implements ProductCatalogItemRe
   async save(item: ProductCatalogItem): Promise<void> {
     const itemState = item.toPrimitives();
 
-    await this.dataSource.getRepository(ProductCatalogItemTypeormEntity).save({
+    await this.repositoryAccessor.getRepository(ProductCatalogItemTypeormEntity).save({
       productId: itemState.productId,
       tenantId: itemState.tenantId,
       barcode: itemState.barcode,
