@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { DomainValidationError, ResourceNotFoundError } from '@supermarket/shared-domain';
+import { ResourceNotFoundError } from '@supermarket/shared-domain';
 
 import type {
   ScanProductByBarcodeInputDto,
   ScanProductByBarcodeOutputDto
 } from '../dto/scan-product-by-barcode.dto';
+import { normalizeRequiredValue } from '../support/input-normalization';
 import type { ProductCatalogItemRepositoryPort } from '#/domain/repositories/product-catalog-item.repository';
 import { PRODUCT_CATALOG_ITEM_REPOSITORY } from '#/domain/repositories/product-catalog-item.repository';
 
@@ -42,14 +43,4 @@ export class ScanProductByBarcodeUseCase {
       priceUpdatedAt: itemState.priceUpdatedAt
     };
   }
-}
-
-function normalizeRequiredValue(value: string, label: string): string {
-  const normalizedValue = value.trim();
-
-  if (normalizedValue.length === 0) {
-    throw new DomainValidationError(`${label} cannot be empty`);
-  }
-
-  return normalizedValue;
 }

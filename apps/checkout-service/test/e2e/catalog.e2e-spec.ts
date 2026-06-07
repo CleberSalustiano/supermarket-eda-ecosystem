@@ -2,7 +2,6 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 
-import { newDb } from 'pg-mem';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 
@@ -17,12 +16,11 @@ import {
 import { ScanProductByBarcodeUseCase } from '#/application/use-cases/scan-product-by-barcode.use-case';
 import { SynchronizeProductCatalogItemUseCase } from '#/application/use-cases/synchronize-product-catalog-item.use-case';
 import { PRODUCT_CATALOG_ITEM_REPOSITORY } from '#/domain/repositories/product-catalog-item.repository';
-import { createCheckoutDataSourceOptions } from '#/infrastructure/config/typeorm.config';
-import { checkoutTypeormEntities } from '#/infrastructure/persistence/typeorm/entities/checkout-typeorm-entities';
 import { ProductCatalogItemTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/product-catalog-item.typeorm-entity';
 import { TypeormProductCatalogItemRepository } from '#/infrastructure/persistence/typeorm/repositories/typeorm-product-catalog-item.repository';
 import { ProductCatalogController } from '#/interfaces/http/product-catalog.controller';
 import { ProductPriceUpdatedConsumer } from '#/interfaces/messaging/product-price-updated.consumer';
+import { createCheckoutPgMemoryDataSource } from '../support/create-checkout-pg-memory-data-source';
 
 describe('checkout-service local product catalog flow', () => {
   let application: INestApplication;
@@ -30,7 +28,7 @@ describe('checkout-service local product catalog flow', () => {
   let productPriceUpdatedConsumer: ProductPriceUpdatedConsumer;
 
   beforeAll(async () => {
-    dataSource = await createPgMemoryDataSource();
+    dataSource = await createCheckoutPgMemoryDataSource();
 
     const moduleFixture = await Test.createTestingModule({
       controllers: [ProductCatalogController],
@@ -39,7 +37,6 @@ describe('checkout-service local product catalog flow', () => {
         ScanProductByBarcodeUseCase,
         SynchronizeProductCatalogItemUseCase,
         ProductPriceUpdatedConsumer,
-        TypeormProductCatalogItemRepository,
         {
           provide: SERVICE_ENVIRONMENT,
           useValue: {
@@ -68,7 +65,8 @@ describe('checkout-service local product catalog flow', () => {
         },
         {
           provide: PRODUCT_CATALOG_ITEM_REPOSITORY,
-          useExisting: TypeormProductCatalogItemRepository
+          useFactory: (dataSource: DataSource) => new TypeormProductCatalogItemRepository(dataSource),
+          inject: [DataSource]
         }
       ]
     }).compile();
@@ -173,41 +171,3 @@ describe('checkout-service local product catalog flow', () => {
     expect(response.body.message).toContain('is inactive');
   });
 });
-
-async function createPgMemoryDataSource(): Promise<DataSource> {
-  const database = newDb({
-    autoCreateForeignKeyIndices: true
-  });
-
-  database.public.registerFunction({
-    name: 'current_database',
-    implementation: () => 'pg_mem_checkout'
-  });
-  database.public.registerFunction({
-    name: 'version',
-    implementation: () => 'pg-mem'
-  });
-  database.public.registerFunction({
-    name: 'quote_ident',
-    args: ['text'],
-    implementation: (value: string) => value
-  });
-  database.public.registerFunction({
-    name: 'obj_description',
-    args: ['regclass', 'text'],
-    implementation: () => null
-  });
-
-  const dataSource = await database.adapters.createTypeormDataSource(
-    createCheckoutDataSourceOptions({
-      type: 'postgres',
-      entities: [...checkoutTypeormEntities],
-      synchronize: true,
-      logging: false
-    })
-  );
-
-  await dataSource.initialize();
-
-  return dataSource;
-}
