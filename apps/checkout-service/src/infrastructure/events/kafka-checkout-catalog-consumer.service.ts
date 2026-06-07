@@ -13,7 +13,7 @@ import {
 import type { ServiceEnvironment } from '@supermarket/shared-infra';
 import { AppLoggerService, SERVICE_ENVIRONMENT } from '@supermarket/shared-infra';
 
-import { ProductPriceUpdatedConsumer } from '../../interfaces/messaging/product-price-updated.consumer';
+import { ProductPriceUpdatedConsumer } from '#/interfaces/messaging/product-price-updated.consumer';
 
 @Injectable()
 export class KafkaCheckoutCatalogConsumerService implements OnModuleInit, OnApplicationShutdown {
@@ -92,7 +92,7 @@ export class KafkaCheckoutCatalogConsumerService implements OnModuleInit, OnAppl
         eachMessage: async ({ message }) => {
           const event = this.parseProductPriceUpdatedEvent(message.value);
 
-          if (event === null) {
+          if (!event) {
             return;
           }
 
@@ -133,7 +133,7 @@ export class KafkaCheckoutCatalogConsumerService implements OnModuleInit, OnAppl
   private parseProductPriceUpdatedEvent(
     value: Buffer | null
   ): EventEnvelope<ProductPriceUpdatedEventPayload> | null {
-    if (value === null) {
+    if (!value) {
       this.logger.warn('Ignoring empty Kafka message while synchronizing the checkout product cache');
 
       return null;
@@ -146,9 +146,9 @@ export class KafkaCheckoutCatalogConsumerService implements OnModuleInit, OnAppl
 
       if (
         parsedValue.eventName !== PRODUCT_PRICE_UPDATED_EVENT_NAME ||
-        parsedValue.payload === undefined ||
+        !parsedValue.payload ||
         typeof parsedValue.payload !== 'object' ||
-        parsedValue.payload === null
+        Array.isArray(parsedValue.payload)
       ) {
         this.logger.warn(
           'Ignoring Kafka message with an unexpected schema for product catalog synchronization'

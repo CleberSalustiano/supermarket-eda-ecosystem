@@ -3,7 +3,7 @@ import { promisify } from 'util';
 
 import { Injectable } from '@nestjs/common';
 
-import type { CredentialHasherPort } from '../../application/ports/credential-hasher.port';
+import type { CredentialHasherPort } from '#/application/ports/credential-hasher.port';
 
 const scrypt = promisify(rawScrypt);
 

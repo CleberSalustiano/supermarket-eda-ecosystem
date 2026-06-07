@@ -5,7 +5,7 @@ import { DataSource } from 'typeorm';
 import type {
   ManagementTransactionContext,
   ManagementTransactionRunnerPort
-} from '../../../application/ports/management-transaction-runner.port';
+} from '#/application/ports/management-transaction-runner.port';
 import { TypeormEmployeeRepository } from './repositories/typeorm-employee.repository';
 import { TypeormOutboxEventRepository } from './repositories/typeorm-outbox-event.repository';
 import { TypeormProductRepository } from './repositories/typeorm-product.repository';

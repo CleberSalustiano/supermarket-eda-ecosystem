@@ -29,7 +29,7 @@ export class UpdateProductPriceUseCase {
       async ({ outboxEventRepository, productRepository }) => {
         const product = await productRepository.findById(input.tenantId, input.productId);
 
-        if (product === null) {
+        if (!product) {
           throw new ResourceNotFoundError(
             `Product ${input.productId} was not found for tenant ${input.tenantId}`
           );

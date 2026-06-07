@@ -6,7 +6,7 @@ import type { EventEnvelope, EventPayload } from '@supermarket/shared-domain';
 import type { ServiceEnvironment } from '@supermarket/shared-infra';
 import { AppLoggerService, SERVICE_ENVIRONMENT } from '@supermarket/shared-infra';
 
-import type { ManagementEventPublisherPort } from '../../application/ports/management-event-publisher.port';
+import type { ManagementEventPublisherPort } from '#/application/ports/management-event-publisher.port';
 
 @Injectable()
 export class KafkaManagementEventPublisherService

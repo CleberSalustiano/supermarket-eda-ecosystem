@@ -1,5 +1,5 @@
-import type { EmployeeRepositoryPort } from '../../../../domain/repositories/employee.repository';
-import { Employee } from '../../../../domain/entities/employee.entity';
+import type { EmployeeRepositoryPort } from '#/domain/repositories/employee.repository';
+import { Employee } from '#/domain/entities/employee.entity';
 import { EmployeeTypeormEntity } from '../entities/employee.typeorm-entity';
 import {
   asTypeormRepositoryAccessor,
@@ -21,7 +21,7 @@ export class TypeormEmployeeRepository implements EmployeeRepositoryPort {
       }
     });
 
-    return entity === null ? null : toDomain(entity);
+    return entity ? toDomain(entity) : null;
   }
 
   async save(employee: Employee): Promise<void> {

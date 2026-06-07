@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import type {
   OutboxEventRepositoryPort,
   StoredOutboxEvent
-} from '../../../../application/ports/outbox-event-repository.port';
+} from '#/application/ports/outbox-event-repository.port';
 import type { EventEnvelope, EventPayload } from '@supermarket/shared-domain';
 import { OutboxEventTypeormEntity } from '../entities/outbox-event.typeorm-entity';
 import {
@@ -42,7 +42,7 @@ export class TypeormOutboxEventRepository implements OutboxEventRepositoryPort {
       }
     });
 
-    if (entity === null) {
+    if (!entity) {
       return null;
     }
 

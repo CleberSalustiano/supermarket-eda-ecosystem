@@ -6,8 +6,8 @@ import type {
   ScanProductByBarcodeInputDto,
   ScanProductByBarcodeOutputDto
 } from '../dto/scan-product-by-barcode.dto';
-import type { ProductCatalogItemRepositoryPort } from '../../domain/repositories/product-catalog-item.repository';
-import { PRODUCT_CATALOG_ITEM_REPOSITORY } from '../../domain/repositories/product-catalog-item.repository';
+import type { ProductCatalogItemRepositoryPort } from '#/domain/repositories/product-catalog-item.repository';
+import { PRODUCT_CATALOG_ITEM_REPOSITORY } from '#/domain/repositories/product-catalog-item.repository';
 
 @Injectable()
 export class ScanProductByBarcodeUseCase {
@@ -21,7 +21,7 @@ export class ScanProductByBarcodeUseCase {
     const barcode = normalizeRequiredValue(input.barcode, 'Barcode');
     const item = await this.productCatalogItemRepository.findByBarcode(tenantId, barcode);
 
-    if (item === null) {
+    if (!item) {
       throw new ResourceNotFoundError(
         `Barcode ${barcode} was not found in the local catalog for tenant ${tenantId}`
       );

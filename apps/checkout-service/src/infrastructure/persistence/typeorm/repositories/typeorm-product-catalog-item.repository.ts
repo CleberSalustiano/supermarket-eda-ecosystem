@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import { DataSource } from 'typeorm';
 
-import type { ProductCatalogItemRepositoryPort } from '../../../../domain/repositories/product-catalog-item.repository';
-import { ProductCatalogItem } from '../../../../domain/entities/product-catalog-item.entity';
+import type { ProductCatalogItemRepositoryPort } from '#/domain/repositories/product-catalog-item.repository';
+import { ProductCatalogItem } from '#/domain/entities/product-catalog-item.entity';
 import { ProductCatalogItemTypeormEntity } from '../entities/product-catalog-item.typeorm-entity';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class TypeormProductCatalogItemRepository implements ProductCatalogItemRe
       }
     });
 
-    return entity === null ? null : toDomain(entity);
+    return entity ? toDomain(entity) : null;
   }
 
   async findByBarcode(tenantId: string, barcode: string): Promise<ProductCatalogItem | null> {
@@ -29,7 +29,7 @@ export class TypeormProductCatalogItemRepository implements ProductCatalogItemRe
       }
     });
 
-    return entity === null ? null : toDomain(entity);
+    return entity ? toDomain(entity) : null;
   }
 
   async save(item: ProductCatalogItem): Promise<void> {

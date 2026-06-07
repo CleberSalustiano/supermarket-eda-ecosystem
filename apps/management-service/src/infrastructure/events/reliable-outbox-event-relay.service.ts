@@ -3,12 +3,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ResourceNotFoundError } from '@supermarket/shared-domain';
 import { AppLoggerService } from '@supermarket/shared-infra';
 
-import type { ManagementEventPublisherPort } from '../../application/ports/management-event-publisher.port';
-import { MANAGEMENT_EVENT_PUBLISHER } from '../../application/ports/management-event-publisher.port';
-import type { OutboxEventRelayPort } from '../../application/ports/outbox-event-relay.port';
-import type { OutboxEventRepositoryPort } from '../../application/ports/outbox-event-repository.port';
-import { OUTBOX_EVENT_REPOSITORY } from '../../application/ports/outbox-event-repository.port';
-import type { IntegrationEventPublicationStatus } from '../../application/dto/integration-event-publication-status';
+import type { ManagementEventPublisherPort } from '#/application/ports/management-event-publisher.port';
+import { MANAGEMENT_EVENT_PUBLISHER } from '#/application/ports/management-event-publisher.port';
+import type { OutboxEventRelayPort } from '#/application/ports/outbox-event-relay.port';
+import type { OutboxEventRepositoryPort } from '#/application/ports/outbox-event-repository.port';
+import { OUTBOX_EVENT_REPOSITORY } from '#/application/ports/outbox-event-repository.port';
+import type { IntegrationEventPublicationStatus } from '#/application/dto/integration-event-publication-status';
 
 @Injectable()
 export class ReliableOutboxEventRelayService implements OutboxEventRelayPort {
@@ -23,11 +23,11 @@ export class ReliableOutboxEventRelayService implements OutboxEventRelayPort {
   async dispatch(eventId: string): Promise<IntegrationEventPublicationStatus> {
     const event = await this.outboxEventRepository.findById(eventId);
 
-    if (event === null) {
+    if (!event) {
       throw new ResourceNotFoundError(`Outbox event ${eventId} was not found`);
     }
 
-    if (event.publishedAt !== null) {
+    if (event.publishedAt) {
       return 'published';
     }
 

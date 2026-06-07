@@ -4,6 +4,18 @@
     "outDir": "../../dist/test/inventory-service",
     "baseUrl": ".",
     "paths": {
+      "@supermarket/shared-domain": [
+        "../../libs/shared-domain/src/index.ts"
+      ],
+      "@supermarket/shared-domain/*": [
+        "../../libs/shared-domain/src/*"
+      ],
+      "@supermarket/shared-infra": [
+        "../../libs/shared-infra/src/index.ts"
+      ],
+      "@supermarket/shared-infra/*": [
+        "../../libs/shared-infra/src/*"
+      ],
       "#/*": [
         "src/*"
       ]

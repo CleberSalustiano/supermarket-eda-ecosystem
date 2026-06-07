@@ -7,11 +7,11 @@ import type {
 import {
   PRODUCT_CATALOG_ITEM_REPOSITORY,
   type ProductCatalogItemRepositoryPort
-} from '../../domain/repositories/product-catalog-item.repository';
+} from '#/domain/repositories/product-catalog-item.repository';
 import {
   ProductCatalogItem,
   type ProductCatalogItemUpdateStatus
-} from '../../domain/entities/product-catalog-item.entity';
+} from '#/domain/entities/product-catalog-item.entity';
 
 @Injectable()
 export class SynchronizeProductCatalogItemUseCase {
@@ -29,7 +29,7 @@ export class SynchronizeProductCatalogItemUseCase {
       event.payload.productId
     );
 
-    if (existingItem === null) {
+    if (!existingItem) {
       const item = ProductCatalogItem.synchronize({
         productId: event.payload.productId,
         tenantId: event.payload.tenantId,

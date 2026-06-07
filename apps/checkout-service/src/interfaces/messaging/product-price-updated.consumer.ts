@@ -5,8 +5,8 @@ import type {
   ProductPriceUpdatedEventPayload
 } from '@supermarket/shared-domain';
 
-import type { SynchronizeProductCatalogItemOutputDto } from '../../application/dto/synchronize-product-catalog-item.dto';
-import { SynchronizeProductCatalogItemUseCase } from '../../application/use-cases/synchronize-product-catalog-item.use-case';
+import type { SynchronizeProductCatalogItemOutputDto } from '#/application/dto/synchronize-product-catalog-item.dto';
+import { SynchronizeProductCatalogItemUseCase } from '#/application/use-cases/synchronize-product-catalog-item.use-case';
 
 @Injectable()
 export class ProductPriceUpdatedConsumer {

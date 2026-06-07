@@ -16,7 +16,7 @@ import type { ManagementTransactionRunnerPort } from '../ports/management-transa
 import { MANAGEMENT_TRANSACTION_RUNNER } from '../ports/management-transaction-runner.port';
 import type { OutboxEventRelayPort } from '../ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_RELAY } from '../ports/outbox-event-relay.port';
-import { Product } from '../../domain/entities/product.entity';
+import { Product } from '#/domain/entities/product.entity';
 
 @Injectable()
 export class RegisterProductUseCase {
@@ -53,7 +53,7 @@ export class RegisterProductUseCase {
         productState.barcode
       );
 
-      if (existingProduct !== null) {
+      if (existingProduct) {
         throw new ConflictError(
           `Barcode ${productState.barcode} is already registered for tenant ${productState.tenantId}`
         );
