@@ -24,10 +24,10 @@
     "start:dev:checkout-service": "nest start checkout-service --watch",
     "start:dev:inventory-service": "nest start inventory-service --watch",
     "start:dev:management-service": "nest start management-service --watch",
-    "test": "jest --selectProjects unit:management-service unit:shared-domain unit:shared-infra && npm run clean:shared-domain-artifacts",
-    "test:watch": "jest --selectProjects unit:management-service unit:shared-domain unit:shared-infra --watch",
+    "test": "jest --selectProjects unit:checkout-service unit:management-service unit:shared-domain unit:shared-infra && npm run clean:shared-domain-artifacts",
+    "test:watch": "jest --selectProjects unit:checkout-service unit:management-service unit:shared-domain unit:shared-infra --watch",
     "test:e2e": "jest --selectProjects e2e:checkout-service e2e:inventory-service e2e:management-service && npm run clean:shared-domain-artifacts",
-    "test:cov": "jest --selectProjects unit:management-service unit:shared-domain unit:shared-infra --coverage && npm run clean:shared-domain-artifacts"
+    "test:cov": "jest --selectProjects unit:checkout-service unit:management-service unit:shared-domain unit:shared-infra --coverage && npm run clean:shared-domain-artifacts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.24",

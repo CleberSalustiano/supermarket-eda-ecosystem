@@ -5,17 +5,43 @@ import request from 'supertest';
 import {
   AppLoggerService,
   CorrelationIdInterceptor,
-  GlobalHttpExceptionFilter
+  GlobalHttpExceptionFilter,
+  SERVICE_ENVIRONMENT
 } from '@supermarket/shared-infra';
 
-import { CheckoutServiceModule } from '#/checkout-service.module';
+import { HealthController } from '#/interfaces/http/health.controller';
 
 describe('checkout-service health endpoint', () => {
   let application: INestApplication;
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
-      imports: [CheckoutServiceModule]
+      controllers: [HealthController],
+      providers: [
+        AppLoggerService,
+        {
+          provide: SERVICE_ENVIRONMENT,
+          useValue: {
+            nodeEnvironment: 'test',
+            serviceName: 'checkout-service',
+            appVersion: '0.1.0',
+            servicePort: 3001,
+            database: {
+              host: 'localhost',
+              port: 5433,
+              name: 'checkout_service',
+              user: 'checkout_user',
+              password: 'checkout_password',
+              ssl: false
+            },
+            kafka: {
+              brokers: ['localhost:19092'],
+              clientId: 'checkout-service',
+              consumerGroupId: 'checkout-service'
+            }
+          }
+        }
+      ]
     }).compile();
 
     application = moduleFixture.createNestApplication();
