@@ -1,4 +1,9 @@
-import { ConflictError, DomainValidationError, ResourceNotFoundError } from '@supermarket/shared-domain';
+import {
+  ConflictError,
+  DomainValidationError,
+  ResourceNotFoundError,
+  SalePaymentMethod
+} from '@supermarket/shared-domain';
 
 import { Sale } from '#/domain/entities/sale.entity';
 
@@ -94,6 +99,11 @@ describe('Sale', () => {
         tenantId: '0a8e7bc5-bbf4-4757-8df9-c391c77b5436',
         sessionId: '26f1f89d-61fe-4c4f-bd12-e5fcfb1d0d77',
         status: 'OPEN',
+        paymentMethod: null,
+        paidAmount: null,
+        changeAmount: null,
+        paidAt: null,
+        completedAt: null,
         totalItemsQuantity: 1,
         subtotal: 8,
         total: 8,
@@ -122,5 +132,84 @@ describe('Sale', () => {
     });
 
     expect(() => sale.removeItem('7891000000200', 1)).toThrow(ResourceNotFoundError);
+  });
+
+  it('registers a cash payment and calculates change', () => {
+    const sale = Sale.start({
+      id: 'f0fa0542-f983-4f22-b205-fde4fcb0692b',
+      tenantId: '0a8e7bc5-bbf4-4757-8df9-c391c77b5436',
+      sessionId: '26f1f89d-61fe-4c4f-bd12-e5fcfb1d0d77'
+    });
+
+    sale.addItem({
+      productId: 'ef198011-97e6-405a-97d6-4e8166f2138e',
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      unitPrice: 9.9,
+      quantity: 1
+    });
+    sale.registerPayment({
+      paymentMethod: SalePaymentMethod.Cash,
+      paidAmount: 20
+    });
+
+    expect(sale.toPrimitives()).toMatchObject({
+      status: 'PAID',
+      paymentMethod: SalePaymentMethod.Cash,
+      paidAmount: 20,
+      changeAmount: 10.1
+    });
+  });
+
+  it('rejects non-cash payments when the paid amount differs from the total', () => {
+    const sale = Sale.start({
+      id: 'f0fa0542-f983-4f22-b205-fde4fcb0692b',
+      tenantId: '0a8e7bc5-bbf4-4757-8df9-c391c77b5436',
+      sessionId: '26f1f89d-61fe-4c4f-bd12-e5fcfb1d0d77'
+    });
+
+    sale.addItem({
+      productId: 'ef198011-97e6-405a-97d6-4e8166f2138e',
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      unitPrice: 9.9,
+      quantity: 1
+    });
+
+    expect(() =>
+      sale.registerPayment({
+        paymentMethod: SalePaymentMethod.Pix,
+        paidAmount: 10
+      })
+    ).toThrow(ConflictError);
+  });
+
+  it('completes a paid sale and freezes its completion timestamp', () => {
+    const sale = Sale.start({
+      id: 'f0fa0542-f983-4f22-b205-fde4fcb0692b',
+      tenantId: '0a8e7bc5-bbf4-4757-8df9-c391c77b5436',
+      sessionId: '26f1f89d-61fe-4c4f-bd12-e5fcfb1d0d77'
+    });
+
+    sale.addItem({
+      productId: 'ef198011-97e6-405a-97d6-4e8166f2138e',
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      unitPrice: 9.9,
+      quantity: 1
+    });
+    sale.registerPayment({
+      paymentMethod: SalePaymentMethod.Cash,
+      paidAmount: 20
+    });
+    sale.complete(new Date('2026-06-09T12:00:00.000Z'));
+
+    expect(sale.toPrimitives()).toMatchObject({
+      status: 'COMPLETED',
+      completedAt: '2026-06-09T12:00:00.000Z'
+    });
   });
 });

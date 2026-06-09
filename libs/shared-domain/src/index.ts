@@ -1,4 +1,5 @@
 export * from './enums/employee-role.enum';
+export * from './enums/sale-payment-method.enum';
 export * from './errors/conflict.error';
 export * from './errors/domain-validation.error';
 export * from './errors/resource-not-found.error';
@@ -7,4 +8,5 @@ export * from './events/event-envelope';
 export * from './events/kafka-topics';
 export * from './events/new-product-registered.event';
 export * from './events/product-price-updated.event';
+export * from './events/sale-completed.event';
 export * from './identifiers/tenant-scoped.interface';

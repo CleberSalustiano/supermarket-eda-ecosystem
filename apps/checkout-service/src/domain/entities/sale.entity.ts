@@ -1,4 +1,9 @@
-import { ConflictError, DomainValidationError, ResourceNotFoundError } from '@supermarket/shared-domain';
+import {
+  ConflictError,
+  DomainValidationError,
+  ResourceNotFoundError,
+  SalePaymentMethod
+} from '@supermarket/shared-domain';
 
 import type { RehydrateSaleItemInput, SaleItemPrimitives } from './sale-item.entity';
 import { SaleItem } from './sale-item.entity';
@@ -10,6 +15,11 @@ export interface SalePrimitives {
   tenantId: string;
   sessionId: string;
   status: SaleStatus;
+  paymentMethod: SalePaymentMethod | null;
+  paidAmount: number | null;
+  changeAmount: number | null;
+  paidAt: string | null;
+  completedAt: string | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -31,6 +41,11 @@ interface RehydrateSaleInput {
   tenantId: string;
   sessionId: string;
   status: SaleStatus;
+  paymentMethod: SalePaymentMethod | null;
+  paidAmount: number | null;
+  changeAmount: number | null;
+  paidAt: Date | null;
+  completedAt: Date | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -48,12 +63,24 @@ interface AddSaleItemInput {
   quantity: number;
 }
 
+interface RegisterPaymentInput {
+  paymentMethod: SalePaymentMethod;
+  paidAmount: number;
+  updatedAt?: Date;
+  paidAt?: Date;
+}
+
 export class Sale {
   private constructor(
     private readonly id: string,
     private readonly tenantId: string,
     private readonly sessionId: string,
     private status: SaleStatus,
+    private paymentMethod: SalePaymentMethod | null,
+    private paidAmount: number | null,
+    private changeAmount: number | null,
+    private paidAt: Date | null,
+    private completedAt: Date | null,
     private items: SaleItem[],
     private totalItemsQuantity: number,
     private subtotal: number,
@@ -72,6 +99,11 @@ export class Sale {
       normalizeIdentifier(input.tenantId, 'Tenant id'),
       normalizeIdentifier(input.sessionId, 'POS session id'),
       'OPEN',
+      null,
+      null,
+      null,
+      null,
+      null,
       [],
       0,
       0,
@@ -88,6 +120,11 @@ export class Sale {
       normalizeIdentifier(input.tenantId, 'Tenant id'),
       normalizeIdentifier(input.sessionId, 'POS session id'),
       normalizeStatus(input.status),
+      normalizePaymentMethod(input.paymentMethod),
+      normalizeNullableMoney(input.paidAmount, 'Paid amount'),
+      normalizeNullableMoney(input.changeAmount, 'Change amount', true),
+      input.paidAt ? ensureDate(input.paidAt, 'Paid at') : null,
+      input.completedAt ? ensureDate(input.completedAt, 'Completed at') : null,
       items,
       normalizeAggregateQuantity(input.totalItemsQuantity, 'Sale total items quantity'),
       normalizeAggregateTotal(input.subtotal, 'Sale subtotal'),
@@ -157,6 +194,60 @@ export class Sale {
     this.updatedAt = ensureDate(updatedAt, 'Updated at');
   }
 
+  registerPayment(input: RegisterPaymentInput): void {
+    this.assertOpen();
+
+    if (this.totalItemsQuantity === 0 || this.total <= 0) {
+      throw new ConflictError(`Sale ${this.id} cannot be paid because the cart is empty`);
+    }
+
+    const paymentMethod = normalizeNonNullPaymentMethod(input.paymentMethod);
+    const paidAmount = normalizeMoney(input.paidAmount, 'Paid amount');
+    const paidAt = ensureDate(input.paidAt ?? new Date(), 'Paid at');
+    const updatedAt = ensureDate(input.updatedAt ?? paidAt, 'Updated at');
+    const changeAmount =
+      paymentMethod === SalePaymentMethod.Cash ? roundMoney(paidAmount - this.total) : 0;
+
+    if (paymentMethod === SalePaymentMethod.Cash && paidAmount < this.total) {
+      throw new ConflictError(
+        `Paid amount ${paidAmount} is insufficient for cash payment on sale ${this.id}`
+      );
+    }
+
+    if (paymentMethod !== SalePaymentMethod.Cash && paidAmount !== this.total) {
+      throw new ConflictError(
+        `Paid amount ${paidAmount} must match the sale total ${this.total} for ${paymentMethod} payments`
+      );
+    }
+
+    this.paymentMethod = paymentMethod;
+    this.paidAmount = paidAmount;
+    this.changeAmount = changeAmount;
+    this.paidAt = paidAt;
+    this.status = 'PAID';
+    this.updatedAt = updatedAt;
+  }
+
+  complete(completedAt: Date = new Date()): void {
+    if (this.status !== 'PAID') {
+      throw new ConflictError(`Sale ${this.id} must be paid before completion`);
+    }
+
+    if (!this.paymentMethod || this.paidAmount === null || this.changeAmount === null || !this.paidAt) {
+      throw new DomainValidationError(`Sale ${this.id} is missing payment data for completion`);
+    }
+
+    if (this.totalItemsQuantity === 0 || this.total <= 0) {
+      throw new ConflictError(`Sale ${this.id} cannot be completed because the cart is empty`);
+    }
+
+    const normalizedCompletedAt = ensureDate(completedAt, 'Completed at');
+
+    this.status = 'COMPLETED';
+    this.completedAt = normalizedCompletedAt;
+    this.updatedAt = normalizedCompletedAt;
+  }
+
   assertOpen(): void {
     if (this.status !== 'OPEN') {
       throw new ConflictError(`Sale ${this.id} is not open for tenant ${this.tenantId}`);
@@ -169,6 +260,11 @@ export class Sale {
       tenantId: this.tenantId,
       sessionId: this.sessionId,
       status: this.status,
+      paymentMethod: this.paymentMethod,
+      paidAmount: this.paidAmount,
+      changeAmount: this.changeAmount,
+      paidAt: this.paidAt?.toISOString() ?? null,
+      completedAt: this.completedAt?.toISOString() ?? null,
       totalItemsQuantity: this.totalItemsQuantity,
       subtotal: this.subtotal,
       total: this.total,
@@ -212,6 +308,30 @@ export class Sale {
         `Sale total ${this.total} does not match the calculated amount ${expectedSubtotal}`
       );
     }
+
+    if (this.status === 'OPEN') {
+      if (this.paymentMethod || this.paidAmount !== null || this.changeAmount !== null || this.paidAt || this.completedAt) {
+        throw new DomainValidationError('Open sales cannot contain payment or completion data');
+      }
+
+      return;
+    }
+
+    if (this.status !== 'PAID' && this.status !== 'COMPLETED') {
+      return;
+    }
+
+    if (!this.paymentMethod || this.paidAmount === null || this.changeAmount === null || !this.paidAt) {
+      throw new DomainValidationError(`Sale ${this.id} must contain payment data when it is not open`);
+    }
+
+    if (this.status === 'COMPLETED' && !this.completedAt) {
+      throw new DomainValidationError(`Completed sale ${this.id} must contain a completion timestamp`);
+    }
+
+    if (this.status !== 'COMPLETED' && this.completedAt) {
+      throw new DomainValidationError(`Only completed sales may contain a completion timestamp`);
+    }
   }
 }
 
@@ -237,6 +357,30 @@ function normalizeStatus(status: SaleStatus): SaleStatus {
   return status;
 }
 
+function normalizePaymentMethod(
+  value: SalePaymentMethod | null
+): SalePaymentMethod | null {
+  if (value === null) {
+    return null;
+  }
+
+  return normalizeNonNullPaymentMethod(value);
+}
+
+function normalizeNonNullPaymentMethod(value: SalePaymentMethod): SalePaymentMethod {
+  if (
+    value !== SalePaymentMethod.Cash &&
+    value !== SalePaymentMethod.CreditCard &&
+    value !== SalePaymentMethod.DebitCard &&
+    value !== SalePaymentMethod.Pix &&
+    value !== SalePaymentMethod.Voucher
+  ) {
+    throw new DomainValidationError(`Sale payment method ${value} is invalid`);
+  }
+
+  return value;
+}
+
 function normalizeQuantity(value: number): number {
   if (!Number.isInteger(value) || value <= 0) {
     throw new DomainValidationError('Sale quantity must be a positive integer');
@@ -256,6 +400,31 @@ function normalizeAggregateQuantity(value: number, label: string): number {
 function normalizeAggregateTotal(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) {
     throw new DomainValidationError(`${label} must be greater than or equal to zero`);
+  }
+
+  return roundMoney(value);
+}
+
+function normalizeMoney(value: number, label: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new DomainValidationError(`${label} must be greater than zero`);
+  }
+
+  return roundMoney(value);
+}
+
+function normalizeNullableMoney(
+  value: number | null,
+  label: string,
+  allowZero: boolean = false
+): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  if (!Number.isFinite(value) || value < 0 || (!allowZero && value === 0)) {
+    const comparator = allowZero ? 'greater than or equal to zero' : 'greater than zero';
+    throw new DomainValidationError(`${label} must be ${comparator}`);
   }
 
   return roundMoney(value);

@@ -26,6 +26,31 @@ export class SaleTypeormEntity {
   @Column('varchar', { length: 16 })
   status!: string;
 
+  @Column('varchar', { length: 32, nullable: true })
+  paymentMethod!: string | null;
+
+  @Column('numeric', {
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalColumnTransformer
+  })
+  paidAmount!: number | null;
+
+  @Column('numeric', {
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalColumnTransformer
+  })
+  changeAmount!: number | null;
+
+  @Column('timestamptz', { nullable: true })
+  paidAt!: Date | null;
+
+  @Column('timestamptz', { nullable: true })
+  completedAt!: Date | null;
+
   @Column('integer')
   totalItemsQuantity!: number;
 
