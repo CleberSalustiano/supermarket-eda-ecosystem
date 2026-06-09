@@ -5,17 +5,43 @@ import request from 'supertest';
 import {
   AppLoggerService,
   CorrelationIdInterceptor,
-  GlobalHttpExceptionFilter
+  GlobalHttpExceptionFilter,
+  SERVICE_ENVIRONMENT
 } from '@supermarket/shared-infra';
 
-import { InventoryServiceModule } from '#/inventory-service.module';
+import { HealthController } from '#/interfaces/http/health.controller';
 
 describe('inventory-service health endpoint', () => {
   let application: INestApplication;
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
-      imports: [InventoryServiceModule]
+      controllers: [HealthController],
+      providers: [
+        AppLoggerService,
+        {
+          provide: SERVICE_ENVIRONMENT,
+          useValue: {
+            nodeEnvironment: 'test',
+            serviceName: 'inventory-service',
+            appVersion: '0.1.0',
+            servicePort: 3002,
+            database: {
+              host: 'localhost',
+              port: 5434,
+              name: 'inventory_service',
+              user: 'inventory_user',
+              password: 'inventory_password',
+              ssl: false
+            },
+            kafka: {
+              brokers: ['localhost:19092'],
+              clientId: 'inventory-service',
+              consumerGroupId: 'inventory-service'
+            }
+          }
+        }
+      ]
     }).compile();
 
     application = moduleFixture.createNestApplication();
