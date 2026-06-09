@@ -49,6 +49,14 @@ module.exports = {
       coverageDirectory: path.join(__dirname, 'coverage/unit/checkout-service')
     }),
     createProjectConfig({
+      displayName: 'unit:inventory-service',
+      rootDir: 'apps/inventory-service',
+      testMatch: '<rootDir>/test/**/*.spec.ts',
+      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
+      tsconfig: '<rootDir>/tsconfig.spec.json',
+      coverageDirectory: path.join(__dirname, 'coverage/unit/inventory-service')
+    }),
+    createProjectConfig({
       displayName: 'unit:management-service',
       rootDir: 'apps/management-service',
       testMatch: '<rootDir>/test/**/*.spec.ts',
