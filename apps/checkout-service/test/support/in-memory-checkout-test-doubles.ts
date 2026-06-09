@@ -1,7 +1,15 @@
+import type { EventEnvelope, EventPayload } from '@supermarket/shared-domain';
+
+import type { IntegrationEventPublicationStatus } from '#/application/dto/integration-event-publication-status';
+import type {
+  OutboxEventRepositoryPort,
+  StoredOutboxEvent
+} from '#/application/ports/outbox-event-repository.port';
 import type {
   CheckoutTransactionContext,
   CheckoutTransactionRunnerPort
 } from '#/application/ports/checkout-transaction-runner.port';
+import type { OutboxEventRelayPort } from '#/application/ports/outbox-event-relay.port';
 import { PosSession } from '#/domain/entities/pos-session.entity';
 import { ProductCatalogItem } from '#/domain/entities/product-catalog-item.entity';
 import { Sale } from '#/domain/entities/sale.entity';
@@ -90,7 +98,58 @@ export class InMemorySaleRepository implements SaleRepositoryPort {
   }
 }
 
+export class InMemoryOutboxEventRepository implements OutboxEventRepositoryPort {
+  private readonly items = new Map<string, StoredOutboxEvent>();
+
+  async save<TPayload extends EventPayload>(event: EventEnvelope<TPayload>): Promise<void> {
+    this.items.set(event.eventId, {
+      ...event,
+      attempts: 0,
+      failureReason: null,
+      publishedAt: null
+    });
+  }
+
+  async findById(eventId: string): Promise<StoredOutboxEvent | null> {
+    return this.items.get(eventId) ?? null;
+  }
+
+  async markPublished(eventId: string, publishedAt: Date): Promise<void> {
+    const event = this.items.get(eventId);
+
+    if (event === undefined) {
+      return;
+    }
+
+    this.items.set(eventId, {
+      ...event,
+      failureReason: null,
+      publishedAt: publishedAt.toISOString()
+    });
+  }
+
+  async registerFailure(eventId: string, failureReason: string): Promise<void> {
+    const event = this.items.get(eventId);
+
+    if (event === undefined) {
+      return;
+    }
+
+    this.items.set(eventId, {
+      ...event,
+      attempts: event.attempts + 1,
+      failureReason,
+      publishedAt: null
+    });
+  }
+
+  all(): StoredOutboxEvent[] {
+    return [...this.items.values()];
+  }
+}
+
 interface InMemoryCheckoutTransactionRunnerOptions {
+  outboxEventRepository?: InMemoryOutboxEventRepository;
   productCatalogItemRepository?: InMemoryProductCatalogItemRepository;
   posSessionRepository?: InMemoryPosSessionRepository;
   saleRepository?: InMemorySaleRepository;
@@ -101,6 +160,7 @@ export class InMemoryCheckoutTransactionRunner implements CheckoutTransactionRun
 
   constructor(options: InMemoryCheckoutTransactionRunnerOptions = {}) {
     this.context = {
+      outboxEventRepository: options.outboxEventRepository ?? new InMemoryOutboxEventRepository(),
       productCatalogItemRepository:
         options.productCatalogItemRepository ?? new InMemoryProductCatalogItemRepository(),
       posSessionRepository: options.posSessionRepository ?? new InMemoryPosSessionRepository(),
@@ -110,6 +170,18 @@ export class InMemoryCheckoutTransactionRunner implements CheckoutTransactionRun
 
   async execute<T>(work: (context: CheckoutTransactionContext) => Promise<T>): Promise<T> {
     return work(this.context);
+  }
+}
+
+export class FakeOutboxEventRelay implements OutboxEventRelayPort {
+  readonly dispatchedEventIds: string[] = [];
+
+  constructor(private readonly status: IntegrationEventPublicationStatus = 'published') {}
+
+  async dispatch(eventId: string): Promise<IntegrationEventPublicationStatus> {
+    this.dispatchedEventIds.push(eventId);
+
+    return this.status;
   }
 }
 

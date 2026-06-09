@@ -1,5 +1,7 @@
 import type { DataSource, EntityManager } from 'typeorm';
 
+import { SalePaymentMethod } from '@supermarket/shared-domain';
+
 import type { SaleRepositoryPort } from '#/domain/repositories/sale.repository';
 import { Sale } from '#/domain/entities/sale.entity';
 import { SaleItemTypeormEntity } from '../entities/sale-item.typeorm-entity';
@@ -37,6 +39,11 @@ export class TypeormSaleRepository implements SaleRepositoryPort {
       tenantId: saleState.tenantId,
       sessionId: saleState.sessionId,
       status: saleState.status,
+      paymentMethod: saleState.paymentMethod,
+      paidAmount: saleState.paidAmount,
+      changeAmount: saleState.changeAmount,
+      paidAt: saleState.paidAt ? new Date(saleState.paidAt) : null,
+      completedAt: saleState.completedAt ? new Date(saleState.completedAt) : null,
       totalItemsQuantity: saleState.totalItemsQuantity,
       subtotal: saleState.subtotal,
       total: saleState.total,
@@ -73,6 +80,11 @@ function toDomain(entity: SaleTypeormEntity): Sale {
     tenantId: entity.tenantId,
     sessionId: entity.sessionId,
     status: entity.status as 'OPEN' | 'PAID' | 'COMPLETED' | 'CANCELED',
+    paymentMethod: entity.paymentMethod as SalePaymentMethod | null,
+    paidAmount: entity.paidAmount,
+    changeAmount: entity.changeAmount,
+    paidAt: entity.paidAt,
+    completedAt: entity.completedAt,
     totalItemsQuantity: entity.totalItemsQuantity,
     subtotal: entity.subtotal,
     total: entity.total,
