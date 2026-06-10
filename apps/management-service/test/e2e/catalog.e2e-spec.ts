@@ -2,7 +2,6 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 
-import { newDb } from 'pg-mem';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 
@@ -33,6 +32,7 @@ import { ScryptCredentialHasherService } from '#/infrastructure/security/scrypt-
 import { EmployeesController } from '#/interfaces/http/employees.controller';
 import { ProductsController } from '#/interfaces/http/products.controller';
 import { HealthController } from '#/interfaces/http/health.controller';
+import { createManagementPgMemoryDataSource } from '../support/create-management-pg-memory-data-source';
 
 describe('management-service catalog flow', () => {
   let application: INestApplication;
@@ -42,7 +42,7 @@ describe('management-service catalog flow', () => {
   };
 
   beforeAll(async () => {
-    dataSource = await createPgMemoryDataSource();
+    dataSource = await createManagementPgMemoryDataSource();
 
     const moduleFixture = await Test.createTestingModule({
       controllers: [HealthController, ProductsController, EmployeesController],
@@ -228,39 +228,3 @@ describe('management-service catalog flow', () => {
     expect(fakePublisher.publish).toHaveBeenCalledTimes(1);
   });
 });
-
-async function createPgMemoryDataSource(): Promise<DataSource> {
-  const database = newDb({
-    autoCreateForeignKeyIndices: true
-  });
-
-  database.public.registerFunction({
-    name: 'current_database',
-    implementation: () => 'pg_mem_management'
-  });
-  database.public.registerFunction({
-    name: 'version',
-    implementation: () => 'pg-mem'
-  });
-  database.public.registerFunction({
-    name: 'quote_ident',
-    args: ['text'],
-    implementation: (value: string) => value
-  });
-  database.public.registerFunction({
-    name: 'obj_description',
-    args: ['regclass', 'text'],
-    implementation: () => null
-  });
-
-  const dataSource = await database.adapters.createTypeormDataSource({
-    type: 'postgres',
-    entities: [...managementTypeormEntities],
-    synchronize: true,
-    logging: false
-  });
-
-  await dataSource.initialize();
-
-  return dataSource;
-}

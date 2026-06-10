@@ -5,7 +5,9 @@ import { SERVICE_ENVIRONMENT, AppLoggerService } from '@supermarket/shared-infra
 
 import { RegisterEmployeeUseCase } from './application/use-cases/register-employee.use-case';
 import { RegisterProductUseCase } from './application/use-cases/register-product.use-case';
+import { ConsolidateCompletedSaleUseCase } from './application/use-cases/consolidate-completed-sale.use-case';
 import { UpdateProductPriceUseCase } from './application/use-cases/update-product-price.use-case';
+import { KafkaManagementSalesConsumerService } from './infrastructure/events/kafka-management-sales-consumer.service';
 import { CREDENTIAL_HASHER } from './application/ports/credential-hasher.port';
 import { MANAGEMENT_EVENT_PUBLISHER } from './application/ports/management-event-publisher.port';
 import { MANAGEMENT_TRANSACTION_RUNNER } from './application/ports/management-transaction-runner.port';
@@ -16,6 +18,7 @@ import { ReliableOutboxEventRelayService } from './infrastructure/events/reliabl
 import { HealthController } from './interfaces/http/health.controller';
 import { EmployeesController } from './interfaces/http/employees.controller';
 import { ProductsController } from './interfaces/http/products.controller';
+import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
 import { managementServiceEnvironment } from './infrastructure/config/management-service.environment';
 import { managementServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
 import { TypeormOutboxEventRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-outbox-event.repository';
@@ -27,11 +30,14 @@ import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-
   controllers: [HealthController, ProductsController, EmployeesController],
   providers: [
     AppLoggerService,
+    ConsolidateCompletedSaleUseCase,
     RegisterEmployeeUseCase,
     RegisterProductUseCase,
     UpdateProductPriceUseCase,
     KafkaManagementEventPublisherService,
+    KafkaManagementSalesConsumerService,
     ReliableOutboxEventRelayService,
+    SaleCompletedConsumer,
     ScryptCredentialHasherService,
     TypeormManagementTransactionRunner,
     TypeormOutboxEventRepository,
