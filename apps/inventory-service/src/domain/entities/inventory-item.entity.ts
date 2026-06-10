@@ -44,6 +44,14 @@ interface IssueSaleInput {
   updatedAt?: Date;
 }
 
+interface RevertSaleIssueInput {
+  barcode: string;
+  name: string;
+  unitOfMeasure: string;
+  quantity: number;
+  updatedAt?: Date;
+}
+
 export class InventoryItem {
   private constructor(
     private readonly productId: string,
@@ -90,10 +98,16 @@ export class InventoryItem {
   issueSale(input: IssueSaleInput): void {
     const quantity = normalizePositiveInteger(input.quantity, 'Sale issue quantity');
 
-    this.barcode = normalizeBarcode(input.barcode);
-    this.name = normalizeRequiredString(input.name, 'Product name');
-    this.unitOfMeasure = normalizeUnitOfMeasure(input.unitOfMeasure);
+    this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
     this.onHandQuantity -= quantity;
+    this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+  }
+
+  revertSaleIssue(input: RevertSaleIssueInput): void {
+    const quantity = normalizePositiveInteger(input.quantity, 'Sale issue reversion quantity');
+
+    this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
+    this.onHandQuantity += quantity;
     this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
   }
 
@@ -109,6 +123,12 @@ export class InventoryItem {
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
+  }
+
+  private synchronizeProductData(barcode: string, name: string, unitOfMeasure: string): void {
+    this.barcode = normalizeBarcode(barcode);
+    this.name = normalizeRequiredString(name, 'Product name');
+    this.unitOfMeasure = normalizeUnitOfMeasure(unitOfMeasure);
   }
 }
 

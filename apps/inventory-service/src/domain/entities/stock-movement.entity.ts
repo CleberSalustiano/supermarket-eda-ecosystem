@@ -1,6 +1,6 @@
 import { DomainValidationError } from '@supermarket/shared-domain';
 
-export type StockMovementType = 'SALE_ISSUE';
+export type StockMovementType = 'SALE_ISSUE' | 'SALE_REVERSION';
 
 export interface StockMovementPrimitives {
   id: string;
@@ -16,6 +16,17 @@ export interface StockMovementPrimitives {
 }
 
 interface RecordSaleIssueInput {
+  id: string;
+  tenantId: string;
+  productId: string;
+  quantity: number;
+  referenceId: string;
+  referenceEventId: string;
+  occurredAt: Date;
+  createdAt?: Date;
+}
+
+interface RecordSaleReversionInput {
   id: string;
   tenantId: string;
   productId: string;
@@ -70,13 +81,40 @@ export class StockMovement {
     );
   }
 
+  static recordSaleReversion(input: RecordSaleReversionInput): StockMovement {
+    const quantity = normalizePositiveInteger(input.quantity, 'Sale issue reversion quantity');
+
+    return new StockMovement(
+      normalizeIdentifier(input.id, 'Stock movement id'),
+      normalizeIdentifier(input.tenantId, 'Tenant id'),
+      normalizeIdentifier(input.productId, 'Product id'),
+      'SALE_REVERSION',
+      quantity,
+      normalizeIdentifier(input.referenceId, 'Reference id'),
+      normalizeIdentifier(input.referenceEventId, 'Reference event id'),
+      'Sale cancellation stock reversion',
+      ensureDate(input.occurredAt, 'Occurred at'),
+      ensureDate(input.createdAt ?? input.occurredAt, 'Created at')
+    );
+  }
+
   static rehydrate(input: RehydrateStockMovementInput): StockMovement {
-    if (input.movementType !== 'SALE_ISSUE') {
+    if (input.movementType !== 'SALE_ISSUE' && input.movementType !== 'SALE_REVERSION') {
       throw new DomainValidationError(`Stock movement type ${input.movementType} is invalid`);
     }
 
-    if (!Number.isInteger(input.quantityDelta) || input.quantityDelta >= 0) {
+    if (!Number.isInteger(input.quantityDelta)) {
+      throw new DomainValidationError('Stock movement quantity delta must be an integer');
+    }
+
+    if (input.movementType === 'SALE_ISSUE' && input.quantityDelta >= 0) {
       throw new DomainValidationError('Sale issue stock movement must have a negative quantity delta');
+    }
+
+    if (input.movementType === 'SALE_REVERSION' && input.quantityDelta <= 0) {
+      throw new DomainValidationError(
+        'Sale reversion stock movement must have a positive quantity delta'
+      );
     }
 
     return new StockMovement(

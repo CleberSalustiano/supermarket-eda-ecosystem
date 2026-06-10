@@ -1,5 +1,13 @@
-import type { EventEnvelope, SaleCompletedEventPayload } from '@supermarket/shared-domain';
-import { createSaleCompletedEvent, SalePaymentMethod } from '@supermarket/shared-domain';
+import type {
+  EventEnvelope,
+  SaleCanceledEventPayload,
+  SaleCompletedEventPayload
+} from '@supermarket/shared-domain';
+import {
+  createSaleCanceledEvent,
+  createSaleCompletedEvent,
+  SalePaymentMethod
+} from '@supermarket/shared-domain';
 
 import type {
   InventoryTransactionContext,
@@ -49,6 +57,26 @@ export class InMemoryProcessedEventRepository implements ProcessedEventRepositor
 
   async findByEventId(eventId: string): Promise<ProcessedEvent | null> {
     return this.items.get(eventId) ?? null;
+  }
+
+  async findByAggregateIdAndEventName(
+    tenantId: string,
+    aggregateId: string,
+    eventName: string
+  ): Promise<ProcessedEvent | null> {
+    for (const event of this.items.values()) {
+      const eventState = event.toPrimitives();
+
+      if (
+        eventState.tenantId === tenantId &&
+        eventState.aggregateId === aggregateId &&
+        eventState.eventName === eventName
+      ) {
+        return event;
+      }
+    }
+
+    return null;
   }
 
   async save(event: ProcessedEvent): Promise<void> {
@@ -102,6 +130,39 @@ export function createSaleCompletedEventFixture(
     subtotal: 29.4,
     total: 29.4,
     completedAt: '2026-06-09T21:00:00.000Z',
+    items: [
+      {
+        productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+        barcode: '7891000000200',
+        name: 'Orange Juice',
+        unitOfMeasure: 'UNIT',
+        unitPrice: 9.8,
+        quantity: 3,
+        lineTotal: 29.4
+      }
+    ],
+    ...overrides
+  });
+}
+
+export function createSaleCanceledEventFixture(
+  overrides: Partial<SaleCanceledEventPayload> = {}
+): EventEnvelope<SaleCanceledEventPayload> {
+  return createSaleCanceledEvent({
+    saleId: 'a34e2d05-c42a-48ea-b982-e0132aa86012',
+    tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+    sessionId: 'e4acdad2-6ffd-4887-b41a-a8ac4b486702',
+    registerId: 'register-01',
+    operatorId: 'ff7c931f-a446-4d2e-9370-b8aa8911c598',
+    previousStatus: 'COMPLETED',
+    paymentMethod: SalePaymentMethod.Cash,
+    paidAmount: 29.7,
+    changeAmount: 0.3,
+    totalItemsQuantity: 3,
+    subtotal: 29.4,
+    total: 29.4,
+    cancellationReason: 'Customer requested cancellation',
+    canceledAt: '2026-06-09T21:05:00.000Z',
     items: [
       {
         productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',

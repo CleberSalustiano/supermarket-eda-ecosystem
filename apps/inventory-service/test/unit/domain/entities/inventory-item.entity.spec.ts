@@ -46,4 +46,36 @@ describe('InventoryItem', () => {
       onHandQuantity: -2
     });
   });
+
+  it('reverts a sale issue and restores product stock metadata consistently', () => {
+    const item = InventoryItem.initialize({
+      productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+      tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      onHandQuantity: 0
+    });
+
+    item.issueSale({
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      quantity: 2
+    });
+
+    item.revertSaleIssue({
+      barcode: '7891000000201',
+      name: 'Orange Juice Returned',
+      unitOfMeasure: 'box',
+      quantity: 2
+    });
+
+    expect(item.toPrimitives()).toMatchObject({
+      barcode: '7891000000201',
+      name: 'Orange Juice Returned',
+      unitOfMeasure: 'BOX',
+      onHandQuantity: 0
+    });
+  });
 });

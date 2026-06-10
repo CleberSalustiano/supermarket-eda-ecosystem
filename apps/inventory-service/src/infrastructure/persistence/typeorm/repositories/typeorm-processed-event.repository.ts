@@ -25,6 +25,22 @@ export class TypeormProcessedEventRepository implements ProcessedEventRepository
     return entity ? toDomain(entity) : null;
   }
 
+  async findByAggregateIdAndEventName(
+    tenantId: string,
+    aggregateId: string,
+    eventName: string
+  ): Promise<ProcessedEvent | null> {
+    const entity = await this.repositoryAccessor.getRepository(ProcessedEventTypeormEntity).findOne({
+      where: {
+        tenantId,
+        aggregateId,
+        eventName
+      }
+    });
+
+    return entity ? toDomain(entity) : null;
+  }
+
   async save(event: ProcessedEvent): Promise<void> {
     const eventState = event.toPrimitives();
 
