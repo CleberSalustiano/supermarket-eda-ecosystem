@@ -9,6 +9,8 @@ import { CHECKOUT_TRANSACTION_RUNNER } from './application/ports/checkout-transa
 import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event-repository.port';
 import { AddSaleItemUseCase } from './application/use-cases/add-sale-item.use-case';
+import { CancelSaleUseCase } from './application/use-cases/cancel-sale.use-case';
+import { ClosePosSessionUseCase } from './application/use-cases/close-pos-session.use-case';
 import { CompleteSaleUseCase } from './application/use-cases/complete-sale.use-case';
 import { OpenPosSessionUseCase } from './application/use-cases/open-pos-session.use-case';
 import { ProcessSalePaymentUseCase } from './application/use-cases/process-sale-payment.use-case';
@@ -41,11 +43,13 @@ import { ProductPriceUpdatedConsumer } from './interfaces/messaging/product-pric
   providers: [
     AppLoggerService,
     OpenPosSessionUseCase,
+    ClosePosSessionUseCase,
     StartSaleUseCase,
     AddSaleItemUseCase,
     RemoveSaleItemUseCase,
     ProcessSalePaymentUseCase,
     CompleteSaleUseCase,
+    CancelSaleUseCase,
     ScanProductByBarcodeUseCase,
     SynchronizeProductCatalogItemUseCase,
     ProductPriceUpdatedConsumer,

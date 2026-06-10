@@ -51,6 +51,12 @@ export class SaleTypeormEntity {
   @Column('timestamptz', { nullable: true })
   completedAt!: Date | null;
 
+  @Column('timestamptz', { nullable: true })
+  canceledAt!: Date | null;
+
+  @Column('varchar', { length: 255, nullable: true })
+  cancellationReason!: string | null;
+
   @Column('integer')
   totalItemsQuantity!: number;
 

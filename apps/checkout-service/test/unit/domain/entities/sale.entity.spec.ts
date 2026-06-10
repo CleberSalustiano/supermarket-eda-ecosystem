@@ -212,4 +212,50 @@ describe('Sale', () => {
       completedAt: '2026-06-09T12:00:00.000Z'
     });
   });
+
+  it('cancels an open sale without manager approval', () => {
+    const sale = Sale.start({
+      id: 'f0fa0542-f983-4f22-b205-fde4fcb0692b',
+      tenantId: '0a8e7bc5-bbf4-4757-8df9-c391c77b5436',
+      sessionId: '26f1f89d-61fe-4c4f-bd12-e5fcfb1d0d77'
+    });
+
+    sale.cancel({
+      reason: 'Customer gave up on the purchase',
+      canceledAt: new Date('2026-06-09T12:10:00.000Z')
+    });
+
+    expect(sale.toPrimitives()).toMatchObject({
+      status: 'CANCELED',
+      cancellationReason: 'Customer gave up on the purchase',
+      canceledAt: '2026-06-09T12:10:00.000Z'
+    });
+  });
+
+  it('requires manager approval to cancel a paid sale', () => {
+    const sale = Sale.start({
+      id: 'f0fa0542-f983-4f22-b205-fde4fcb0692b',
+      tenantId: '0a8e7bc5-bbf4-4757-8df9-c391c77b5436',
+      sessionId: '26f1f89d-61fe-4c4f-bd12-e5fcfb1d0d77'
+    });
+
+    sale.addItem({
+      productId: 'ef198011-97e6-405a-97d6-4e8166f2138e',
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      unitPrice: 9.9,
+      quantity: 1
+    });
+    sale.registerPayment({
+      paymentMethod: SalePaymentMethod.Cash,
+      paidAmount: 20
+    });
+
+    expect(() =>
+      sale.cancel({
+        reason: 'Card terminal rollback'
+      })
+    ).toThrow(ConflictError);
+  });
 });

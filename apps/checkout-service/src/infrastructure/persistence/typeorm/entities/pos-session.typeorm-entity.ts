@@ -24,6 +24,14 @@ export class PosSessionTypeormEntity {
   })
   openingFloatAmount!: number;
 
+  @Column('numeric', {
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalColumnTransformer
+  })
+  declaredCashAmount!: number | null;
+
   @Column('varchar', { length: 16 })
   status!: string;
 

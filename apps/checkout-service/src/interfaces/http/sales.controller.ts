@@ -1,11 +1,17 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 
-import type { CompleteSaleOutputDto, SaleOutputDto } from '#/application/dto/sale.dto';
+import type {
+  CancelSaleOutputDto,
+  CompleteSaleOutputDto,
+  SaleOutputDto
+} from '#/application/dto/sale.dto';
 import { AddSaleItemUseCase } from '#/application/use-cases/add-sale-item.use-case';
+import { CancelSaleUseCase } from '#/application/use-cases/cancel-sale.use-case';
 import { CompleteSaleUseCase } from '#/application/use-cases/complete-sale.use-case';
 import { ProcessSalePaymentUseCase } from '#/application/use-cases/process-sale-payment.use-case';
 import { RemoveSaleItemUseCase } from '#/application/use-cases/remove-sale-item.use-case';
 import { StartSaleUseCase } from '#/application/use-cases/start-sale.use-case';
+import { CancelSaleRequestDto } from './dto/cancel-sale.request.dto';
 import { ManageSaleItemRequestDto } from './dto/manage-sale-item.request.dto';
 import { CompleteSaleRequestDto } from './dto/complete-sale.request.dto';
 import { ProcessSalePaymentRequestDto } from './dto/process-sale-payment.request.dto';
@@ -18,7 +24,8 @@ export class SalesController {
     private readonly addSaleItemUseCase: AddSaleItemUseCase,
     private readonly removeSaleItemUseCase: RemoveSaleItemUseCase,
     private readonly processSalePaymentUseCase: ProcessSalePaymentUseCase,
-    private readonly completeSaleUseCase: CompleteSaleUseCase
+    private readonly completeSaleUseCase: CompleteSaleUseCase,
+    private readonly cancelSaleUseCase: CancelSaleUseCase
   ) {}
 
   @Post()
@@ -80,6 +87,20 @@ export class SalesController {
     return this.completeSaleUseCase.execute({
       tenantId: request.tenantId,
       saleId
+    });
+  }
+
+  @Post(':saleId/cancellation')
+  @HttpCode(HttpStatus.OK)
+  async cancelSale(
+    @Param('saleId', new ParseUUIDPipe({ version: '4' })) saleId: string,
+    @Body() request: CancelSaleRequestDto
+  ): Promise<CancelSaleOutputDto> {
+    return this.cancelSaleUseCase.execute({
+      tenantId: request.tenantId,
+      saleId,
+      reason: request.reason,
+      managerApprovalCode: request.managerApprovalCode
     });
   }
 }

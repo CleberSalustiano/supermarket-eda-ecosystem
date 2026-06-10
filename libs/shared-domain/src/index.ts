@@ -8,5 +8,7 @@ export * from './events/event-envelope';
 export * from './events/kafka-topics';
 export * from './events/new-product-registered.event';
 export * from './events/product-price-updated.event';
+export * from './events/register-closed.event';
+export * from './events/sale-canceled.event';
 export * from './events/sale-completed.event';
 export * from './identifiers/tenant-scoped.interface';
