@@ -20,6 +20,8 @@ export interface SalePrimitives {
   changeAmount: number | null;
   paidAt: string | null;
   completedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -46,6 +48,8 @@ interface RehydrateSaleInput {
   changeAmount: number | null;
   paidAt: Date | null;
   completedAt: Date | null;
+  canceledAt: Date | null;
+  cancellationReason: string | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -70,6 +74,13 @@ interface RegisterPaymentInput {
   paidAt?: Date;
 }
 
+interface CancelSaleInput {
+  reason: string;
+  managerApprovalCode?: string;
+  canceledAt?: Date;
+  updatedAt?: Date;
+}
+
 export class Sale {
   private constructor(
     private readonly id: string,
@@ -81,6 +92,8 @@ export class Sale {
     private changeAmount: number | null,
     private paidAt: Date | null,
     private completedAt: Date | null,
+    private canceledAt: Date | null,
+    private cancellationReason: string | null,
     private items: SaleItem[],
     private totalItemsQuantity: number,
     private subtotal: number,
@@ -99,6 +112,8 @@ export class Sale {
       normalizeIdentifier(input.tenantId, 'Tenant id'),
       normalizeIdentifier(input.sessionId, 'POS session id'),
       'OPEN',
+      null,
+      null,
       null,
       null,
       null,
@@ -125,6 +140,8 @@ export class Sale {
       normalizeNullableMoney(input.changeAmount, 'Change amount', true),
       input.paidAt ? ensureDate(input.paidAt, 'Paid at') : null,
       input.completedAt ? ensureDate(input.completedAt, 'Completed at') : null,
+      input.canceledAt ? ensureDate(input.canceledAt, 'Canceled at') : null,
+      normalizeNullableRequiredString(input.cancellationReason, 'Cancellation reason'),
       items,
       normalizeAggregateQuantity(input.totalItemsQuantity, 'Sale total items quantity'),
       normalizeAggregateTotal(input.subtotal, 'Sale subtotal'),
@@ -248,6 +265,29 @@ export class Sale {
     this.updatedAt = normalizedCompletedAt;
   }
 
+  cancel(input: CancelSaleInput): void {
+    if (this.status === 'CANCELED') {
+      throw new ConflictError(`Sale ${this.id} is already canceled for tenant ${this.tenantId}`);
+    }
+
+    if (this.status !== 'OPEN' && this.status !== 'PAID' && this.status !== 'COMPLETED') {
+      throw new ConflictError(`Sale ${this.id} cannot be canceled from status ${this.status}`);
+    }
+
+    if (this.status !== 'OPEN' && !input.managerApprovalCode?.trim()) {
+      throw new ConflictError(
+        `Sale ${this.id} requires manager approval before cancellation after payment`
+      );
+    }
+
+    const canceledAt = ensureDate(input.canceledAt ?? new Date(), 'Canceled at');
+
+    this.status = 'CANCELED';
+    this.cancellationReason = normalizeRequiredString(input.reason, 'Cancellation reason');
+    this.canceledAt = canceledAt;
+    this.updatedAt = ensureDate(input.updatedAt ?? canceledAt, 'Updated at');
+  }
+
   assertOpen(): void {
     if (this.status !== 'OPEN') {
       throw new ConflictError(`Sale ${this.id} is not open for tenant ${this.tenantId}`);
@@ -265,6 +305,8 @@ export class Sale {
       changeAmount: this.changeAmount,
       paidAt: this.paidAt?.toISOString() ?? null,
       completedAt: this.completedAt?.toISOString() ?? null,
+      canceledAt: this.canceledAt?.toISOString() ?? null,
+      cancellationReason: this.cancellationReason,
       totalItemsQuantity: this.totalItemsQuantity,
       subtotal: this.subtotal,
       total: this.total,
@@ -310,8 +352,49 @@ export class Sale {
     }
 
     if (this.status === 'OPEN') {
-      if (this.paymentMethod || this.paidAmount !== null || this.changeAmount !== null || this.paidAt || this.completedAt) {
+      if (
+        this.paymentMethod ||
+        this.paidAmount !== null ||
+        this.changeAmount !== null ||
+        this.paidAt ||
+        this.completedAt ||
+        this.canceledAt ||
+        this.cancellationReason
+      ) {
         throw new DomainValidationError('Open sales cannot contain payment or completion data');
+      }
+
+      return;
+    }
+
+    if (this.status === 'CANCELED') {
+      if (!this.canceledAt || !this.cancellationReason) {
+        throw new DomainValidationError(`Canceled sale ${this.id} must contain cancellation data`);
+      }
+
+      const containsAnyPaymentData =
+        this.paymentMethod !== null ||
+        this.paidAmount !== null ||
+        this.changeAmount !== null ||
+        this.paidAt !== null ||
+        this.completedAt !== null;
+
+      if (
+        containsAnyPaymentData &&
+        (!this.paymentMethod ||
+          this.paidAmount === null ||
+          this.changeAmount === null ||
+          !this.paidAt)
+      ) {
+        throw new DomainValidationError(
+          `Canceled sale ${this.id} must preserve complete payment data when payment exists`
+        );
+      }
+
+      if (this.completedAt && !this.paidAt) {
+        throw new DomainValidationError(
+          `Canceled sale ${this.id} cannot have a completion timestamp without payment data`
+        );
       }
 
       return;
@@ -321,8 +404,15 @@ export class Sale {
       return;
     }
 
-    if (!this.paymentMethod || this.paidAmount === null || this.changeAmount === null || !this.paidAt) {
-      throw new DomainValidationError(`Sale ${this.id} must contain payment data when it is not open`);
+    if (
+      !this.paymentMethod ||
+      this.paidAmount === null ||
+      this.changeAmount === null ||
+      !this.paidAt
+    ) {
+      throw new DomainValidationError(
+        `Sale ${this.id} must contain payment data when it is not open`
+      );
     }
 
     if (this.status === 'COMPLETED' && !this.completedAt) {
@@ -331,6 +421,10 @@ export class Sale {
 
     if (this.status !== 'COMPLETED' && this.completedAt) {
       throw new DomainValidationError(`Only completed sales may contain a completion timestamp`);
+    }
+
+    if (this.canceledAt || this.cancellationReason) {
+      throw new DomainValidationError(`Non-canceled sale ${this.id} cannot contain cancellation data`);
     }
   }
 }
@@ -347,6 +441,17 @@ function normalizeRequiredString(value: string, label: string): string {
   }
 
   return normalizedValue;
+}
+
+function normalizeNullableRequiredString(
+  value: string | null | undefined,
+  label: string
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return normalizeRequiredString(value, label);
 }
 
 function normalizeStatus(status: SaleStatus): SaleStatus {

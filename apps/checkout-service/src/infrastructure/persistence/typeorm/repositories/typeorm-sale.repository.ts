@@ -1,4 +1,5 @@
 import type { DataSource, EntityManager } from 'typeorm';
+import { In } from 'typeorm';
 
 import { SalePaymentMethod } from '@supermarket/shared-domain';
 
@@ -29,6 +30,20 @@ export class TypeormSaleRepository implements SaleRepositoryPort {
     return entity ? toDomain(entity) : null;
   }
 
+  async hasNonTerminalBySessionId(tenantId: string, sessionId: string): Promise<boolean> {
+    const matchingSalesCount = await this.repositoryAccessor
+      .getRepository(SaleTypeormEntity)
+      .count({
+        where: {
+          tenantId,
+          sessionId,
+          status: In(['OPEN', 'PAID'])
+        }
+      });
+
+    return matchingSalesCount > 0;
+  }
+
   async save(sale: Sale): Promise<void> {
     const saleState = sale.toPrimitives();
     const saleRepository = this.repositoryAccessor.getRepository(SaleTypeormEntity);
@@ -44,6 +59,8 @@ export class TypeormSaleRepository implements SaleRepositoryPort {
       changeAmount: saleState.changeAmount,
       paidAt: saleState.paidAt ? new Date(saleState.paidAt) : null,
       completedAt: saleState.completedAt ? new Date(saleState.completedAt) : null,
+      canceledAt: saleState.canceledAt ? new Date(saleState.canceledAt) : null,
+      cancellationReason: saleState.cancellationReason,
       totalItemsQuantity: saleState.totalItemsQuantity,
       subtotal: saleState.subtotal,
       total: saleState.total,
@@ -85,6 +102,8 @@ function toDomain(entity: SaleTypeormEntity): Sale {
     changeAmount: entity.changeAmount,
     paidAt: entity.paidAt,
     completedAt: entity.completedAt,
+    canceledAt: entity.canceledAt,
+    cancellationReason: entity.cancellationReason,
     totalItemsQuantity: entity.totalItemsQuantity,
     subtotal: entity.subtotal,
     total: entity.total,

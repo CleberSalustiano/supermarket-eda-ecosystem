@@ -19,6 +19,7 @@ describe('PosSession', () => {
       registerId: 'register-01',
       operatorId: '5da5d613-d196-4895-943e-118f42c6ad6f',
       openingFloatAmount: 150.5,
+      declaredCashAmount: null,
       status: 'OPEN',
       openedAt: '2026-06-07T10:00:00.000Z',
       closedAt: null
@@ -33,6 +34,7 @@ describe('PosSession', () => {
         registerId: 'register-01',
         operatorId: '5da5d613-d196-4895-943e-118f42c6ad6f',
         openingFloatAmount: 150.5,
+        declaredCashAmount: 200,
         status: 'CLOSED',
         openedAt: new Date('2026-06-07T10:00:00.000Z'),
         closedAt: null,
@@ -49,6 +51,7 @@ describe('PosSession', () => {
       registerId: 'register-01',
       operatorId: '5da5d613-d196-4895-943e-118f42c6ad6f',
       openingFloatAmount: 150.5,
+      declaredCashAmount: 210.5,
       status: 'CLOSED',
       openedAt: new Date('2026-06-07T10:00:00.000Z'),
       closedAt: new Date('2026-06-07T18:00:00.000Z'),
@@ -57,5 +60,26 @@ describe('PosSession', () => {
     });
 
     expect(() => session.assertOpen()).toThrow(ConflictError);
+  });
+
+  it('closes an open session with declared cash amount', () => {
+    const session = PosSession.open({
+      id: 'aa2f8448-c17b-4e13-bcc8-a210274df97a',
+      tenantId: 'b4a36763-7060-43a5-ab6d-9184585d5c48',
+      registerId: 'register-01',
+      operatorId: '5da5d613-d196-4895-943e-118f42c6ad6f',
+      openingFloatAmount: 150.5
+    });
+
+    session.close({
+      declaredCashAmount: 321.4,
+      closedAt: new Date('2026-06-07T18:00:00.000Z')
+    });
+
+    expect(session.toPrimitives()).toMatchObject({
+      status: 'CLOSED',
+      declaredCashAmount: 321.4,
+      closedAt: '2026-06-07T18:00:00.000Z'
+    });
   });
 });

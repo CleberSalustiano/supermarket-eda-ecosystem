@@ -87,6 +87,19 @@ export class InMemorySaleRepository implements SaleRepositoryPort {
     return this.sales.get(buildKey(tenantId, saleId)) ?? null;
   }
 
+  async hasNonTerminalBySessionId(tenantId: string, sessionId: string): Promise<boolean> {
+    return this.all().some((sale) => {
+      const saleState = sale.toPrimitives();
+
+      return (
+        saleState.tenantId === tenantId &&
+        saleState.sessionId === sessionId &&
+        saleState.status !== 'COMPLETED' &&
+        saleState.status !== 'CANCELED'
+      );
+    });
+  }
+
   async save(sale: Sale): Promise<void> {
     const saleState = sale.toPrimitives();
 

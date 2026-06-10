@@ -1,6 +1,8 @@
 export const KafkaTopics = {
   checkout: {
-    saleCompleted: 'checkout.sale.completed'
+    saleCompleted: 'checkout.sale.completed',
+    saleCanceled: 'checkout.sale.canceled',
+    registerClosed: 'checkout.register.closed'
   },
   management: {
     productRegistered: 'management.product.registered',

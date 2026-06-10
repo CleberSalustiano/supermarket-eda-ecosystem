@@ -8,6 +8,7 @@ export interface PosSessionPrimitives {
   registerId: string;
   operatorId: string;
   openingFloatAmount: number;
+  declaredCashAmount: number | null;
   status: PosSessionStatus;
   openedAt: string;
   closedAt: string | null;
@@ -32,11 +33,18 @@ interface RehydratePosSessionInput {
   registerId: string;
   operatorId: string;
   openingFloatAmount: number;
+  declaredCashAmount: number | null;
   status: PosSessionStatus;
   openedAt: Date;
   closedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface ClosePosSessionInput {
+  declaredCashAmount: number;
+  closedAt?: Date;
+  updatedAt?: Date;
 }
 
 export class PosSession {
@@ -46,9 +54,10 @@ export class PosSession {
     private readonly registerId: string,
     private readonly operatorId: string,
     private readonly openingFloatAmount: number,
+    private declaredCashAmount: number | null,
     private status: PosSessionStatus,
     private readonly openedAt: Date,
-    private readonly closedAt: Date | null,
+    private closedAt: Date | null,
     private readonly createdAt: Date,
     private updatedAt: Date
   ) {}
@@ -64,6 +73,7 @@ export class PosSession {
       normalizeRequiredString(input.registerId, 'Register id'),
       normalizeIdentifier(input.operatorId, 'Operator id'),
       normalizeMoneyAmount(input.openingFloatAmount, 'Opening float amount'),
+      null,
       'OPEN',
       ensureDate(now, 'Opened at'),
       null,
@@ -78,13 +88,25 @@ export class PosSession {
     const createdAt = ensureDate(input.createdAt, 'Created at');
     const updatedAt = ensureDate(input.updatedAt, 'Updated at');
     const status = normalizeStatus(input.status);
+    const declaredCashAmount = normalizeNullableMoneyAmount(
+      input.declaredCashAmount,
+      'Declared cash amount'
+    );
 
     if (status === 'OPEN' && closedAt) {
       throw new DomainValidationError('Open POS sessions cannot have a close timestamp');
     }
 
+    if (status === 'OPEN' && declaredCashAmount !== null) {
+      throw new DomainValidationError('Open POS sessions cannot have a declared cash amount');
+    }
+
     if (status === 'CLOSED' && !closedAt) {
       throw new DomainValidationError('Closed POS sessions must have a close timestamp');
+    }
+
+    if (status === 'CLOSED' && declaredCashAmount === null) {
+      throw new DomainValidationError('Closed POS sessions must have a declared cash amount');
     }
 
     return new PosSession(
@@ -93,6 +115,7 @@ export class PosSession {
       normalizeRequiredString(input.registerId, 'Register id'),
       normalizeIdentifier(input.operatorId, 'Operator id'),
       normalizeMoneyAmount(input.openingFloatAmount, 'Opening float amount'),
+      declaredCashAmount,
       status,
       openedAt,
       closedAt,
@@ -107,6 +130,20 @@ export class PosSession {
     }
   }
 
+  close(input: ClosePosSessionInput): void {
+    this.assertOpen();
+
+    const closedAt = ensureDate(input.closedAt ?? new Date(), 'Closed at');
+
+    this.declaredCashAmount = normalizeMoneyAmount(
+      input.declaredCashAmount,
+      'Declared cash amount'
+    );
+    this.status = 'CLOSED';
+    this.closedAt = closedAt;
+    this.updatedAt = ensureDate(input.updatedAt ?? closedAt, 'Updated at');
+  }
+
   toPrimitives(): PosSessionPrimitives {
     return {
       id: this.id,
@@ -114,6 +151,7 @@ export class PosSession {
       registerId: this.registerId,
       operatorId: this.operatorId,
       openingFloatAmount: this.openingFloatAmount,
+      declaredCashAmount: this.declaredCashAmount,
       status: this.status,
       openedAt: this.openedAt.toISOString(),
       closedAt: this.closedAt?.toISOString() ?? null,
@@ -143,6 +181,14 @@ function normalizeMoneyAmount(value: number, label: string): number {
   }
 
   return Number.parseFloat(value.toFixed(2));
+}
+
+function normalizeNullableMoneyAmount(value: number | null, label: string): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  return normalizeMoneyAmount(value, label);
 }
 
 function normalizeStatus(status: PosSessionStatus): PosSessionStatus {

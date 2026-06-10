@@ -35,6 +35,13 @@ export interface CompleteSaleInputDto {
   saleId: string;
 }
 
+export interface CancelSaleInputDto {
+  tenantId: string;
+  saleId: string;
+  reason: string;
+  managerApprovalCode?: string;
+}
+
 export interface SaleItemOutputDto {
   productId: string;
   barcode: string;
@@ -55,6 +62,8 @@ export interface SaleOutputDto {
   changeAmount: number | null;
   paidAt: string | null;
   completedAt: string | null;
+  canceledAt: string | null;
+  cancellationReason: string | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -82,6 +91,10 @@ export interface CompleteSaleOutputDto extends SaleOutputDto {
   receipt: SaleReceiptOutputDto;
 }
 
+export interface CancelSaleOutputDto extends SaleOutputDto {
+  eventPublicationStatus: IntegrationEventPublicationStatus;
+}
+
 export function toSaleOutputDto(sale: Sale): SaleOutputDto {
   const saleState = sale.toPrimitives();
 
@@ -95,6 +108,8 @@ export function toSaleOutputDto(sale: Sale): SaleOutputDto {
     changeAmount: saleState.changeAmount,
     paidAt: saleState.paidAt,
     completedAt: saleState.completedAt,
+    canceledAt: saleState.canceledAt,
+    cancellationReason: saleState.cancellationReason,
     totalItemsQuantity: saleState.totalItemsQuantity,
     subtotal: saleState.subtotal,
     total: saleState.total,
@@ -145,5 +160,15 @@ export function toCompleteSaleOutputDto(
       issuedAt: saleOutput.completedAt,
       items: saleOutput.items
     }
+  };
+}
+
+export function toCancelSaleOutputDto(
+  sale: Sale,
+  eventPublicationStatus: IntegrationEventPublicationStatus
+): CancelSaleOutputDto {
+  return {
+    ...toSaleOutputDto(sale),
+    eventPublicationStatus
   };
 }
