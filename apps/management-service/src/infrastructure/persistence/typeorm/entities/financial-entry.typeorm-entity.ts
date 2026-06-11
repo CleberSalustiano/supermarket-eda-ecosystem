@@ -13,6 +13,7 @@ import { decimalColumnTransformer } from './decimal-column.transformer';
   unique: true
 })
 @Index('idx_financial_entries_tenant_business_date', ['tenantId', 'businessDate'])
+@Index('idx_financial_entries_tenant_session_payment', ['tenantId', 'sessionId', 'paymentMethod'])
 export class FinancialEntryTypeormEntity {
   @PrimaryColumn('uuid')
   id!: string;
@@ -28,6 +29,15 @@ export class FinancialEntryTypeormEntity {
 
   @Column('uuid')
   saleId!: string;
+
+  @Column('uuid', { nullable: true })
+  sessionId!: string | null;
+
+  @Column('varchar', { length: 64, nullable: true })
+  registerId!: string | null;
+
+  @Column('uuid', { nullable: true })
+  operatorId!: string | null;
 
   @Column('varchar', { length: 16 })
   paymentMethod!: string;

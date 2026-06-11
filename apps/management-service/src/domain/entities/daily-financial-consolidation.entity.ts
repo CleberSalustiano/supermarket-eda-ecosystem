@@ -87,8 +87,15 @@ export class DailyFinancialConsolidation {
     this.grossSalesTotal = Number.parseFloat(
       (this.grossSalesTotal + entry.contributesGrossSales()).toFixed(2)
     );
-    this.salesCount += 1;
+    this.salesCount += entry.contributesSalesCount();
     this.soldItemsQuantity += entry.contributesItemsQuantity();
+
+    if (this.grossSalesTotal < 0 || this.salesCount < 0 || this.soldItemsQuantity < 0) {
+      throw new DomainValidationError(
+        'Daily financial consolidation cannot become negative after applying a financial entry'
+      );
+    }
+
     this.lastConsolidatedAt = maxDate(this.lastConsolidatedAt, new Date(entry.toPrimitives().occurredAt));
     this.updatedAt = ensureDate(updatedAt, 'Updated at');
   }

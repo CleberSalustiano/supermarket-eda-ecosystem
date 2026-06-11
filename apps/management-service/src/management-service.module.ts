@@ -5,7 +5,9 @@ import { SERVICE_ENVIRONMENT, AppLoggerService } from '@supermarket/shared-infra
 
 import { RegisterEmployeeUseCase } from './application/use-cases/register-employee.use-case';
 import { RegisterProductUseCase } from './application/use-cases/register-product.use-case';
+import { CompensateCanceledSaleUseCase } from './application/use-cases/compensate-canceled-sale.use-case';
 import { ConsolidateCompletedSaleUseCase } from './application/use-cases/consolidate-completed-sale.use-case';
+import { ReconcileRegisterClosureUseCase } from './application/use-cases/reconcile-register-closure.use-case';
 import { UpdateProductPriceUseCase } from './application/use-cases/update-product-price.use-case';
 import { KafkaManagementSalesConsumerService } from './infrastructure/events/kafka-management-sales-consumer.service';
 import { CREDENTIAL_HASHER } from './application/ports/credential-hasher.port';
@@ -18,6 +20,8 @@ import { ReliableOutboxEventRelayService } from './infrastructure/events/reliabl
 import { HealthController } from './interfaces/http/health.controller';
 import { EmployeesController } from './interfaces/http/employees.controller';
 import { ProductsController } from './interfaces/http/products.controller';
+import { RegisterClosedConsumer } from './interfaces/messaging/register-closed.consumer';
+import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
 import { managementServiceEnvironment } from './infrastructure/config/management-service.environment';
 import { managementServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
@@ -30,13 +34,17 @@ import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-
   controllers: [HealthController, ProductsController, EmployeesController],
   providers: [
     AppLoggerService,
+    CompensateCanceledSaleUseCase,
     ConsolidateCompletedSaleUseCase,
+    ReconcileRegisterClosureUseCase,
     RegisterEmployeeUseCase,
     RegisterProductUseCase,
     UpdateProductPriceUseCase,
     KafkaManagementEventPublisherService,
     KafkaManagementSalesConsumerService,
+    RegisterClosedConsumer,
     ReliableOutboxEventRelayService,
+    SaleCanceledConsumer,
     SaleCompletedConsumer,
     ScryptCredentialHasherService,
     TypeormManagementTransactionRunner,

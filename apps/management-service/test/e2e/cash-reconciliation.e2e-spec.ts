@@ -4,22 +4,29 @@ import { DataSource } from 'typeorm';
 
 import { AppLoggerService, SERVICE_ENVIRONMENT } from '@supermarket/shared-infra';
 
+import { CompensateCanceledSaleUseCase } from '#/application/use-cases/compensate-canceled-sale.use-case';
 import { ConsolidateCompletedSaleUseCase } from '#/application/use-cases/consolidate-completed-sale.use-case';
+import { ReconcileRegisterClosureUseCase } from '#/application/use-cases/reconcile-register-closure.use-case';
 import { MANAGEMENT_TRANSACTION_RUNNER } from '#/application/ports/management-transaction-runner.port';
-import { DailyFinancialConsolidationTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/daily-financial-consolidation.typeorm-entity';
+import { CashReconciliationTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/cash-reconciliation.typeorm-entity';
 import { FinancialEntryTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/financial-entry.typeorm-entity';
 import { ProcessedEventTypeormEntity } from '#/infrastructure/persistence/typeorm/entities/processed-event.typeorm-entity';
-import { TypeormDailyFinancialConsolidationRepository } from '#/infrastructure/persistence/typeorm/repositories/typeorm-daily-financial-consolidation.repository';
-import { TypeormFinancialEntryRepository } from '#/infrastructure/persistence/typeorm/repositories/typeorm-financial-entry.repository';
-import { TypeormProcessedEventRepository } from '#/infrastructure/persistence/typeorm/repositories/typeorm-processed-event.repository';
 import { TypeormManagementTransactionRunner } from '#/infrastructure/persistence/typeorm/typeorm-management-transaction-runner';
+import { RegisterClosedConsumer } from '#/interfaces/messaging/register-closed.consumer';
+import { SaleCanceledConsumer } from '#/interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from '#/interfaces/messaging/sale-completed.consumer';
 import { createManagementPgMemoryDataSource } from '../support/create-management-pg-memory-data-source';
-import { createSaleCompletedEventFixture } from '../support/in-memory-management-test-doubles';
+import {
+  createRegisterClosedEventFixture,
+  createSaleCanceledEventFixture,
+  createSaleCompletedEventFixture
+} from '../support/in-memory-management-test-doubles';
 
-describe('management-service financial consolidation flow', () => {
+describe('management-service cash reconciliation flow', () => {
   let application: INestApplication;
   let dataSource: DataSource;
+  let registerClosedConsumer: RegisterClosedConsumer;
+  let saleCanceledConsumer: SaleCanceledConsumer;
   let saleCompletedConsumer: SaleCompletedConsumer;
 
   beforeAll(async () => {
@@ -28,7 +35,11 @@ describe('management-service financial consolidation flow', () => {
     const moduleFixture = await Test.createTestingModule({
       providers: [
         AppLoggerService,
+        CompensateCanceledSaleUseCase,
         ConsolidateCompletedSaleUseCase,
+        ReconcileRegisterClosureUseCase,
+        RegisterClosedConsumer,
+        SaleCanceledConsumer,
         SaleCompletedConsumer,
         TypeormManagementTransactionRunner,
         {
@@ -67,6 +78,8 @@ describe('management-service financial consolidation flow', () => {
     application = moduleFixture.createNestApplication();
     await application.init();
 
+    registerClosedConsumer = application.get(RegisterClosedConsumer);
+    saleCanceledConsumer = application.get(SaleCanceledConsumer);
     saleCompletedConsumer = application.get(SaleCompletedConsumer);
   });
 
@@ -75,9 +88,9 @@ describe('management-service financial consolidation flow', () => {
       return;
     }
 
-    await dataSource.getRepository(FinancialEntryTypeormEntity).clear();
-    await dataSource.getRepository(DailyFinancialConsolidationTypeormEntity).clear();
+    await dataSource.getRepository(CashReconciliationTypeormEntity).clear();
     await dataSource.getRepository(ProcessedEventTypeormEntity).clear();
+    await dataSource.getRepository(FinancialEntryTypeormEntity).clear();
   });
 
   afterAll(async () => {
@@ -90,26 +103,52 @@ describe('management-service financial consolidation flow', () => {
     }
   });
 
-  it('consolidates a completed sale once and ignores duplicate deliveries', async () => {
-    const event = createSaleCompletedEventFixture();
+  it('reconciles a register using the net cash drawer balance after a cancellation reversal', async () => {
+    await saleCompletedConsumer.handle(createSaleCompletedEventFixture());
+    await saleCanceledConsumer.handle(createSaleCanceledEventFixture());
 
-    const firstResult = await saleCompletedConsumer.handle(event);
-    const secondResult = await saleCompletedConsumer.handle(event);
+    const result = await registerClosedConsumer.handle(
+      createRegisterClosedEventFixture({
+        declaredCashAmount: 100
+      })
+    );
 
-    expect(firstResult.processingStatus).toBe('processed');
-    expect(secondResult.processingStatus).toBe('ignored');
+    expect(result).toMatchObject({
+      processingStatus: 'processed',
+      expectedCashAmount: 100,
+      differenceAmount: 0,
+      reconciliationStatus: 'BALANCED'
+    });
 
-    const persistedEntries = await dataSource.getRepository(FinancialEntryTypeormEntity).find();
-    const persistedConsolidation = await dataSource
-      .getRepository(DailyFinancialConsolidationTypeormEntity)
+    const persistedReconciliation = await dataSource
+      .getRepository(CashReconciliationTypeormEntity)
       .findOneByOrFail({
-        tenantId: 'eebf4667-1f0d-42d7-893b-b5da98f30239',
-        businessDate: '2026-06-09'
+        sessionId: 'd2d71326-db87-42b9-9d6d-58de8c4f8424'
       });
 
-    expect(persistedEntries).toHaveLength(1);
-    expect(persistedConsolidation.grossSalesTotal).toBe(42.5);
-    expect(persistedConsolidation.salesCount).toBe(1);
-    expect(persistedConsolidation.soldItemsQuantity).toBe(3);
+    expect(persistedReconciliation.expectedCashAmount).toBe(100);
+    expect(persistedReconciliation.status).toBe('BALANCED');
+  });
+
+  it('keeps the drawer expectation at the opening float when cancellation arrives before sale completion', async () => {
+    await saleCanceledConsumer.handle(createSaleCanceledEventFixture());
+    await saleCompletedConsumer.handle(createSaleCompletedEventFixture());
+
+    const result = await registerClosedConsumer.handle(
+      createRegisterClosedEventFixture({
+        declaredCashAmount: 100
+      })
+    );
+
+    expect(result).toMatchObject({
+      processingStatus: 'processed',
+      expectedCashAmount: 100,
+      differenceAmount: 0,
+      reconciliationStatus: 'BALANCED'
+    });
+
+    const persistedEntries = await dataSource.getRepository(FinancialEntryTypeormEntity).find();
+
+    expect(persistedEntries).toHaveLength(0);
   });
 });
