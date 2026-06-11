@@ -6,10 +6,12 @@ import type {
   ManagementTransactionContext,
   ManagementTransactionRunnerPort
 } from '#/application/ports/management-transaction-runner.port';
+import { TypeormCashReconciliationRepository } from './repositories/typeorm-cash-reconciliation.repository';
 import { TypeormDailyFinancialConsolidationRepository } from './repositories/typeorm-daily-financial-consolidation.repository';
 import { TypeormEmployeeRepository } from './repositories/typeorm-employee.repository';
 import { TypeormFinancialEntryRepository } from './repositories/typeorm-financial-entry.repository';
 import { TypeormOutboxEventRepository } from './repositories/typeorm-outbox-event.repository';
+import { TypeormProcessedEventRepository } from './repositories/typeorm-processed-event.repository';
 import { TypeormProductRepository } from './repositories/typeorm-product.repository';
 
 @Injectable()
@@ -19,12 +21,14 @@ export class TypeormManagementTransactionRunner implements ManagementTransaction
   async execute<T>(work: (context: ManagementTransactionContext) => Promise<T>): Promise<T> {
     return this.dataSource.transaction(async (manager) =>
       work({
+        cashReconciliationRepository: new TypeormCashReconciliationRepository(manager),
         dailyFinancialConsolidationRepository: new TypeormDailyFinancialConsolidationRepository(
           manager
         ),
         employeeRepository: new TypeormEmployeeRepository(manager),
         financialEntryRepository: new TypeormFinancialEntryRepository(manager),
         outboxEventRepository: new TypeormOutboxEventRepository(manager),
+        processedEventRepository: new TypeormProcessedEventRepository(manager),
         productRepository: new TypeormProductRepository(manager)
       })
     );

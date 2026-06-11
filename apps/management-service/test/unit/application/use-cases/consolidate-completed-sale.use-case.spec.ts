@@ -1,5 +1,7 @@
 import { ConsolidateCompletedSaleUseCase } from '#/application/use-cases/consolidate-completed-sale.use-case';
+import { ProcessedEvent } from '#/domain/entities/processed-event.entity';
 import {
+  createSaleCanceledEventFixture,
   InMemoryManagementTransactionRunner,
   createSaleCompletedEventFixture
 } from '../../../support/in-memory-management-test-doubles';
@@ -42,5 +44,32 @@ describe('ConsolidateCompletedSaleUseCase', () => {
     });
     expect(transactionRunner.financialEntryRepository.all()).toHaveLength(1);
     expect(transactionRunner.dailyFinancialConsolidationRepository.all()).toHaveLength(1);
+  });
+
+  it('skips a completed sale when the sale was already canceled before the event arrives', async () => {
+    const transactionRunner = new InMemoryManagementTransactionRunner();
+    const useCase = new ConsolidateCompletedSaleUseCase(transactionRunner);
+    const canceledEvent = createSaleCanceledEventFixture();
+
+    await transactionRunner.processedEventRepository.save(
+      ProcessedEvent.record({
+        eventId: canceledEvent.eventId,
+        eventName: canceledEvent.eventName,
+        aggregateId: canceledEvent.aggregateId,
+        tenantId: canceledEvent.tenantId,
+        processedAt: new Date(canceledEvent.occurredAt)
+      })
+    );
+
+    const response = await useCase.execute({
+      event: createSaleCompletedEventFixture()
+    });
+
+    expect(response).toMatchObject({
+      processingStatus: 'skipped',
+      financialEntryId: null
+    });
+    expect(transactionRunner.financialEntryRepository.all()).toHaveLength(0);
+    expect(transactionRunner.dailyFinancialConsolidationRepository.all()).toHaveLength(0);
   });
 });

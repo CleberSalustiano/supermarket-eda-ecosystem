@@ -11,6 +11,6 @@ export interface ConsolidateCompletedSaleOutputDto {
   saleId: string;
   tenantId: string;
   businessDate: string;
-  processingStatus: 'processed' | 'ignored';
+  processingStatus: 'processed' | 'ignored' | 'skipped';
   financialEntryId: string | null;
 }
