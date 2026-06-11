@@ -1,21 +1,34 @@
 import type {
   EventEnvelope,
+  EventPayload,
+  InventoryLossRegisteredEventPayload,
   SaleCanceledEventPayload,
   SaleCompletedEventPayload
 } from '@supermarket/shared-domain';
 import {
+  createInventoryLossRegisteredEvent,
   createSaleCanceledEvent,
   createSaleCompletedEvent,
+  InventoryLossReason,
   SalePaymentMethod
 } from '@supermarket/shared-domain';
 
+import type { IntegrationEventPublicationStatus } from '#/application/dto/integration-event-publication-status';
+import type { InventoryEventPublisherPort } from '#/application/ports/inventory-event-publisher.port';
 import type {
   InventoryTransactionContext,
   InventoryTransactionRunnerPort
 } from '#/application/ports/inventory-transaction-runner.port';
+import type { OutboxEventRelayPort } from '#/application/ports/outbox-event-relay.port';
+import type {
+  OutboxEventRepositoryPort,
+  StoredOutboxEvent
+} from '#/application/ports/outbox-event-repository.port';
+import { InventoryLoss } from '#/domain/entities/inventory-loss.entity';
 import { InventoryItem } from '#/domain/entities/inventory-item.entity';
 import { ProcessedEvent } from '#/domain/entities/processed-event.entity';
 import { StockMovement } from '#/domain/entities/stock-movement.entity';
+import type { InventoryLossRepositoryPort } from '#/domain/repositories/inventory-loss.repository';
 import type { InventoryItemRepositoryPort } from '#/domain/repositories/inventory-item.repository';
 import type { ProcessedEventRepositoryPort } from '#/domain/repositories/processed-event.repository';
 import type { StockMovementRepositoryPort } from '#/domain/repositories/stock-movement.repository';
@@ -38,6 +51,20 @@ export class InMemoryInventoryItemRepository implements InventoryItemRepositoryP
   }
 }
 
+export class InMemoryInventoryLossRepository implements InventoryLossRepositoryPort {
+  private readonly items = new Map<string, InventoryLoss>();
+
+  async save(loss: InventoryLoss): Promise<void> {
+    const lossState = loss.toPrimitives();
+
+    this.items.set(lossState.id, loss);
+  }
+
+  all(): InventoryLoss[] {
+    return [...this.items.values()];
+  }
+}
+
 export class InMemoryStockMovementRepository implements StockMovementRepositoryPort {
   private readonly items = new Map<string, StockMovement>();
 
@@ -48,6 +75,56 @@ export class InMemoryStockMovementRepository implements StockMovementRepositoryP
   }
 
   all(): StockMovement[] {
+    return [...this.items.values()];
+  }
+}
+
+export class InMemoryOutboxEventRepository implements OutboxEventRepositoryPort {
+  private readonly items = new Map<string, StoredOutboxEvent>();
+
+  async save<TPayload extends EventPayload>(event: EventEnvelope<TPayload>): Promise<void> {
+    this.items.set(event.eventId, {
+      ...event,
+      attempts: 0,
+      failureReason: null,
+      publishedAt: null
+    });
+  }
+
+  async findById(eventId: string): Promise<StoredOutboxEvent | null> {
+    return this.items.get(eventId) ?? null;
+  }
+
+  async markPublished(eventId: string, publishedAt: Date): Promise<void> {
+    const event = this.items.get(eventId);
+
+    if (!event) {
+      return;
+    }
+
+    this.items.set(eventId, {
+      ...event,
+      failureReason: null,
+      publishedAt: publishedAt.toISOString()
+    });
+  }
+
+  async registerFailure(eventId: string, failureReason: string): Promise<void> {
+    const event = this.items.get(eventId);
+
+    if (!event) {
+      return;
+    }
+
+    this.items.set(eventId, {
+      ...event,
+      attempts: event.attempts + 1,
+      failureReason,
+      publishedAt: null
+    });
+  }
+
+  all(): StoredOutboxEvent[] {
     return [...this.items.values()];
   }
 }
@@ -91,7 +168,9 @@ export class InMemoryProcessedEventRepository implements ProcessedEventRepositor
 }
 
 interface InMemoryInventoryTransactionRunnerOptions {
+  inventoryLossRepository?: InMemoryInventoryLossRepository;
   inventoryItemRepository?: InMemoryInventoryItemRepository;
+  outboxEventRepository?: InMemoryOutboxEventRepository;
   processedEventRepository?: InMemoryProcessedEventRepository;
   stockMovementRepository?: InMemoryStockMovementRepository;
 }
@@ -101,7 +180,10 @@ export class InMemoryInventoryTransactionRunner implements InventoryTransactionR
 
   constructor(options: InMemoryInventoryTransactionRunnerOptions = {}) {
     this.context = {
+      inventoryLossRepository:
+        options.inventoryLossRepository ?? new InMemoryInventoryLossRepository(),
       inventoryItemRepository: options.inventoryItemRepository ?? new InMemoryInventoryItemRepository(),
+      outboxEventRepository: options.outboxEventRepository ?? new InMemoryOutboxEventRepository(),
       processedEventRepository:
         options.processedEventRepository ?? new InMemoryProcessedEventRepository(),
       stockMovementRepository:
@@ -176,6 +258,51 @@ export function createSaleCanceledEventFixture(
     ],
     ...overrides
   });
+}
+
+export function createInventoryLossRegisteredEventFixture(
+  overrides: Partial<InventoryLossRegisteredEventPayload> = {}
+): EventEnvelope<InventoryLossRegisteredEventPayload> {
+  return createInventoryLossRegisteredEvent({
+    lossId: '08bb36fd-7bbc-41cc-a0cc-03836834d591',
+    stockMovementId: '8c0e9188-93b5-44e3-bf99-d6ba510ae8df',
+    tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+    productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+    barcode: '7891000000200',
+    name: 'Orange Juice',
+    unitOfMeasure: 'UNIT',
+    quantity: 2,
+    reasonCode: InventoryLossReason.Damaged,
+    notes: 'Bottle leaked',
+    onHandQuantityAfterLoss: -2,
+    recordedAt: '2026-06-11T10:00:00.000Z',
+    ...overrides
+  });
+}
+
+export class FakeOutboxEventRelay implements OutboxEventRelayPort {
+  readonly dispatchedEventIds: string[] = [];
+
+  constructor(private readonly status: IntegrationEventPublicationStatus = 'published') {}
+
+  async dispatch(eventId: string): Promise<IntegrationEventPublicationStatus> {
+    this.dispatchedEventIds.push(eventId);
+
+    return this.status;
+  }
+}
+
+export class FakeInventoryEventPublisher implements InventoryEventPublisherPort {
+  readonly publishedEvents: EventEnvelope[] = [];
+  constructor(private readonly shouldFail: boolean = false) {}
+
+  async publish<TPayload extends EventPayload>(event: EventEnvelope<TPayload>): Promise<void> {
+    if (this.shouldFail) {
+      throw new Error('Simulated publisher failure');
+    }
+
+    this.publishedEvents.push(event);
+  }
 }
 
 function buildKey(tenantId: string, resourceId: string): string {

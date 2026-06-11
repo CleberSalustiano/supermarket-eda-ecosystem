@@ -1,6 +1,6 @@
-import { DomainValidationError } from '@supermarket/shared-domain';
+import { DomainValidationError, InventoryLossReason } from '@supermarket/shared-domain';
 
-export type StockMovementType = 'SALE_ISSUE' | 'SALE_REVERSION';
+export type StockMovementType = 'SALE_ISSUE' | 'SALE_REVERSION' | 'LOSS';
 
 export interface StockMovementPrimitives {
   id: string;
@@ -33,6 +33,18 @@ interface RecordSaleReversionInput {
   quantity: number;
   referenceId: string;
   referenceEventId: string;
+  occurredAt: Date;
+  createdAt?: Date;
+}
+
+interface RecordLossInput {
+  id: string;
+  tenantId: string;
+  productId: string;
+  quantity: number;
+  referenceId: string;
+  referenceEventId: string;
+  reasonCode: InventoryLossReason;
   occurredAt: Date;
   createdAt?: Date;
 }
@@ -98,8 +110,29 @@ export class StockMovement {
     );
   }
 
+  static recordLoss(input: RecordLossInput): StockMovement {
+    const quantity = normalizePositiveInteger(input.quantity, 'Inventory loss quantity');
+
+    return new StockMovement(
+      normalizeIdentifier(input.id, 'Stock movement id'),
+      normalizeIdentifier(input.tenantId, 'Tenant id'),
+      normalizeIdentifier(input.productId, 'Product id'),
+      'LOSS',
+      quantity * -1,
+      normalizeIdentifier(input.referenceId, 'Reference id'),
+      normalizeIdentifier(input.referenceEventId, 'Reference event id'),
+      `Inventory loss registered: ${normalizeReasonCode(input.reasonCode)}`,
+      ensureDate(input.occurredAt, 'Occurred at'),
+      ensureDate(input.createdAt ?? input.occurredAt, 'Created at')
+    );
+  }
+
   static rehydrate(input: RehydrateStockMovementInput): StockMovement {
-    if (input.movementType !== 'SALE_ISSUE' && input.movementType !== 'SALE_REVERSION') {
+    if (
+      input.movementType !== 'SALE_ISSUE' &&
+      input.movementType !== 'SALE_REVERSION' &&
+      input.movementType !== 'LOSS'
+    ) {
       throw new DomainValidationError(`Stock movement type ${input.movementType} is invalid`);
     }
 
@@ -115,6 +148,10 @@ export class StockMovement {
       throw new DomainValidationError(
         'Sale reversion stock movement must have a positive quantity delta'
       );
+    }
+
+    if (input.movementType === 'LOSS' && input.quantityDelta >= 0) {
+      throw new DomainValidationError('Inventory loss stock movement must have a negative quantity delta');
     }
 
     return new StockMovement(
@@ -172,6 +209,14 @@ function normalizePositiveInteger(value: number, label: string): number {
 function ensureDate(value: Date, label: string): Date {
   if (Number.isNaN(value.getTime())) {
     throw new DomainValidationError(`${label} is invalid`);
+  }
+
+  return value;
+}
+
+function normalizeReasonCode(value: InventoryLossReason): InventoryLossReason {
+  if (!Object.values(InventoryLossReason).includes(value)) {
+    throw new DomainValidationError(`Inventory loss reason ${value} is invalid`);
   }
 
   return value;

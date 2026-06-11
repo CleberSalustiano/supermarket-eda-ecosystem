@@ -1,9 +1,13 @@
+import type { InventoryLossRepositoryPort } from '#/domain/repositories/inventory-loss.repository';
 import type { InventoryItemRepositoryPort } from '#/domain/repositories/inventory-item.repository';
 import type { ProcessedEventRepositoryPort } from '#/domain/repositories/processed-event.repository';
 import type { StockMovementRepositoryPort } from '#/domain/repositories/stock-movement.repository';
+import type { OutboxEventRepositoryPort } from './outbox-event-repository.port';
 
 export interface InventoryTransactionContext {
+  inventoryLossRepository: InventoryLossRepositoryPort;
   inventoryItemRepository: InventoryItemRepositoryPort;
+  outboxEventRepository: OutboxEventRepositoryPort;
   processedEventRepository: ProcessedEventRepositoryPort;
   stockMovementRepository: StockMovementRepositoryPort;
 }

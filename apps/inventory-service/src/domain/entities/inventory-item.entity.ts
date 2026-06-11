@@ -52,6 +52,14 @@ interface RevertSaleIssueInput {
   updatedAt?: Date;
 }
 
+interface RegisterLossInput {
+  barcode: string;
+  name: string;
+  unitOfMeasure: string;
+  quantity: number;
+  updatedAt?: Date;
+}
+
 export class InventoryItem {
   private constructor(
     private readonly productId: string,
@@ -108,6 +116,14 @@ export class InventoryItem {
 
     this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
     this.onHandQuantity += quantity;
+    this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+  }
+
+  registerLoss(input: RegisterLossInput): void {
+    const quantity = normalizePositiveInteger(input.quantity, 'Inventory loss quantity');
+
+    this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
+    this.onHandQuantity -= quantity;
     this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
   }
 

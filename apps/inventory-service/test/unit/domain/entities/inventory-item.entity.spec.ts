@@ -78,4 +78,29 @@ describe('InventoryItem', () => {
       onHandQuantity: 0
     });
   });
+
+  it('registers an inventory loss and allows stock to go negative for traceability', () => {
+    const item = InventoryItem.initialize({
+      productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+      tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+      barcode: '7891000000200',
+      name: 'Orange Juice',
+      unitOfMeasure: 'unit',
+      onHandQuantity: 1
+    });
+
+    item.registerLoss({
+      barcode: '7891000000201',
+      name: 'Orange Juice Damaged',
+      unitOfMeasure: 'box',
+      quantity: 3
+    });
+
+    expect(item.toPrimitives()).toMatchObject({
+      barcode: '7891000000201',
+      name: 'Orange Juice Damaged',
+      unitOfMeasure: 'BOX',
+      onHandQuantity: -2
+    });
+  });
 });
