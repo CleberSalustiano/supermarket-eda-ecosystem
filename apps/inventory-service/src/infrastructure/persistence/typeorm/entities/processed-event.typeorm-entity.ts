@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm'
 
 @Entity('processed_events')
 @Index('idx_processed_events_tenant_name', ['tenantId', 'eventName'])
+@Index('idx_processed_events_tenant_aggregate_name', ['tenantId', 'aggregateId', 'eventName'])
 export class ProcessedEventTypeormEntity {
   @PrimaryColumn('uuid')
   eventId!: string;

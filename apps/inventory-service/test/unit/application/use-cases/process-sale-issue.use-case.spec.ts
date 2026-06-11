@@ -1,6 +1,10 @@
+import { SALE_CANCELED_EVENT_NAME } from '@supermarket/shared-domain';
+
 import { ProcessSaleIssueUseCase } from '#/application/use-cases/process-sale-issue.use-case';
+import { ProcessedEvent } from '#/domain/entities/processed-event.entity';
 import { InventoryItem } from '#/domain/entities/inventory-item.entity';
 import {
+  createSaleCanceledEventFixture,
   createSaleCompletedEventFixture,
   InMemoryInventoryItemRepository,
   InMemoryInventoryTransactionRunner,
@@ -68,5 +72,36 @@ describe('ProcessSaleIssueUseCase', () => {
       onHandQuantity: 7
     });
     expect(stockMovementRepository.all()).toHaveLength(1);
+  });
+
+  it('skips a sale completion when the sale was already canceled before the event arrives', async () => {
+    const inventoryItemRepository = new InMemoryInventoryItemRepository();
+    const processedEventRepository = new InMemoryProcessedEventRepository();
+    const stockMovementRepository = new InMemoryStockMovementRepository();
+    const transactionRunner = new InMemoryInventoryTransactionRunner({
+      inventoryItemRepository,
+      processedEventRepository,
+      stockMovementRepository
+    });
+    const useCase = new ProcessSaleIssueUseCase(transactionRunner);
+    const canceledEvent = createSaleCanceledEventFixture();
+    const completedEvent = createSaleCompletedEventFixture();
+
+    await processedEventRepository.save(
+      ProcessedEvent.record({
+        eventId: canceledEvent.eventId,
+        eventName: SALE_CANCELED_EVENT_NAME,
+        aggregateId: canceledEvent.aggregateId,
+        tenantId: canceledEvent.tenantId,
+        processedAt: new Date(canceledEvent.occurredAt)
+      })
+    );
+
+    const result = await useCase.execute({ event: completedEvent });
+
+    expect(result.processingStatus).toBe('skipped');
+    expect(inventoryItemRepository.all()).toHaveLength(0);
+    expect(stockMovementRepository.all()).toHaveLength(0);
+    expect(processedEventRepository.all()).toHaveLength(2);
   });
 });

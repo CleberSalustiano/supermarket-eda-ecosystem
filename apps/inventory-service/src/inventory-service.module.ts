@@ -6,10 +6,12 @@ import { SERVICE_ENVIRONMENT, AppLoggerService } from '@supermarket/shared-infra
 
 import { INVENTORY_TRANSACTION_RUNNER } from './application/ports/inventory-transaction-runner.port';
 import { ProcessSaleIssueUseCase } from './application/use-cases/process-sale-issue.use-case';
+import { RevertSaleIssueUseCase } from './application/use-cases/revert-sale-issue.use-case';
 import { INVENTORY_ITEM_REPOSITORY } from './domain/repositories/inventory-item.repository';
 import { PROCESSED_EVENT_REPOSITORY } from './domain/repositories/processed-event.repository';
 import { STOCK_MOVEMENT_REPOSITORY } from './domain/repositories/stock-movement.repository';
 import { HealthController } from './interfaces/http/health.controller';
+import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
 import { inventoryServiceEnvironment } from './infrastructure/config/inventory-service.environment';
 import { inventoryServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
@@ -25,6 +27,8 @@ import { TypeormStockMovementRepository } from './infrastructure/persistence/typ
   providers: [
     AppLoggerService,
     ProcessSaleIssueUseCase,
+    RevertSaleIssueUseCase,
+    SaleCanceledConsumer,
     SaleCompletedConsumer,
     KafkaInventorySaleConsumerService,
     TypeormInventoryTransactionRunner,

@@ -4,7 +4,7 @@ export interface ProcessSaleIssueInputDto {
   event: EventEnvelope<SaleCompletedEventPayload>;
 }
 
-export type SaleIssueProcessingStatus = 'processed' | 'ignored';
+export type SaleIssueProcessingStatus = 'processed' | 'ignored' | 'skipped';
 
 export interface ProcessSaleIssueOutputDto {
   saleId: string;
