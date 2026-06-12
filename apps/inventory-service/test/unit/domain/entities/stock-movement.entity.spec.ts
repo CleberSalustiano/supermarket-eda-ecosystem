@@ -1,3 +1,5 @@
+import { InventoryLossReason } from '@supermarket/shared-domain';
+
 import { StockMovement } from '#/domain/entities/stock-movement.entity';
 
 describe('StockMovement', () => {
@@ -34,6 +36,25 @@ describe('StockMovement', () => {
       movementType: 'SALE_REVERSION',
       quantityDelta: 3,
       reason: 'Sale cancellation stock reversion'
+    });
+  });
+
+  it('records a negative stock movement for an inventory loss', () => {
+    const movement = StockMovement.recordLoss({
+      id: '7b7bd3e4-bdda-4f01-a015-d43d23416584',
+      tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+      productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+      quantity: 2,
+      referenceId: 'a34e2d05-c42a-48ea-b982-e0132aa86012',
+      referenceEventId: 'fb728de1-d0a2-4e9b-bd4f-3a8d7fcd4c68',
+      reasonCode: InventoryLossReason.Damaged,
+      occurredAt: new Date('2026-06-11T10:00:00.000Z')
+    });
+
+    expect(movement.toPrimitives()).toMatchObject({
+      movementType: 'LOSS',
+      quantityDelta: -2,
+      reason: 'Inventory loss registered: DAMAGED'
     });
   });
 });

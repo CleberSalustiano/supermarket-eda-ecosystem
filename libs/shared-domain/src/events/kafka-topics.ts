@@ -4,6 +4,11 @@ export const KafkaTopics = {
     saleCanceled: 'checkout.sale.canceled',
     registerClosed: 'checkout.register.closed'
   },
+  inventory: {
+    productReceived: 'inventory.product.received',
+    inventoryLossRegistered: 'inventory.loss.registered',
+    lowStockAlert: 'inventory.low-stock.alert'
+  },
   management: {
     productRegistered: 'management.product.registered',
     productPriceUpdated: 'management.product-price.updated',
