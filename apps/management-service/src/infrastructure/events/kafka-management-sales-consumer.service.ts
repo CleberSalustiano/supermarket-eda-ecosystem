@@ -5,11 +5,13 @@ import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs
 import { Kafka, type Consumer } from 'kafkajs';
 
 import {
+  INVENTORY_LOSS_REGISTERED_EVENT_NAME,
   KafkaTopics,
   REGISTER_CLOSED_EVENT_NAME,
   SALE_CANCELED_EVENT_NAME,
   SALE_COMPLETED_EVENT_NAME,
   type EventEnvelope,
+  type InventoryLossRegisteredEventPayload,
   type RegisterClosedEventPayload,
   type SaleCanceledEventPayload,
   type SaleCompletedEventPayload
@@ -17,6 +19,7 @@ import {
 import type { ServiceEnvironment } from '@supermarket/shared-infra';
 import { AppLoggerService, SERVICE_ENVIRONMENT } from '@supermarket/shared-infra';
 
+import { InventoryLossRegisteredConsumer } from '#/interfaces/messaging/inventory-loss-registered.consumer';
 import { RegisterClosedConsumer } from '#/interfaces/messaging/register-closed.consumer';
 import { SaleCanceledConsumer } from '#/interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from '#/interfaces/messaging/sale-completed.consumer';
@@ -35,6 +38,7 @@ export class KafkaManagementSalesConsumerService
     @Inject(SERVICE_ENVIRONMENT)
     private readonly environment: ServiceEnvironment,
     private readonly logger: AppLoggerService,
+    private readonly inventoryLossRegisteredConsumer: InventoryLossRegisteredConsumer,
     private readonly registerClosedConsumer: RegisterClosedConsumer,
     private readonly saleCanceledConsumer: SaleCanceledConsumer,
     private readonly saleCompletedConsumer: SaleCompletedConsumer
@@ -103,6 +107,10 @@ export class KafkaManagementSalesConsumerService
         topic: KafkaTopics.checkout.registerClosed,
         fromBeginning: true
       });
+      await this.consumer.subscribe({
+        topic: KafkaTopics.inventory.inventoryLossRegistered,
+        fromBeginning: true
+      });
       this.connected = true;
       this.logger.log('Management financial Kafka consumer connected');
 
@@ -150,6 +158,7 @@ export class KafkaManagementSalesConsumerService
     | EventEnvelope<SaleCompletedEventPayload>
     | EventEnvelope<SaleCanceledEventPayload>
     | EventEnvelope<RegisterClosedEventPayload>
+    | EventEnvelope<InventoryLossRegisteredEventPayload>
     | null {
     if (!value) {
       this.logger.warn('Ignoring empty Kafka message while processing management financial events');
@@ -166,7 +175,8 @@ export class KafkaManagementSalesConsumerService
       if (
         (parsedValue.eventName !== SALE_COMPLETED_EVENT_NAME &&
           parsedValue.eventName !== SALE_CANCELED_EVENT_NAME &&
-          parsedValue.eventName !== REGISTER_CLOSED_EVENT_NAME) ||
+          parsedValue.eventName !== REGISTER_CLOSED_EVENT_NAME &&
+          parsedValue.eventName !== INVENTORY_LOSS_REGISTERED_EVENT_NAME) ||
         !parsedValue.payload ||
         typeof parsedValue.payload !== 'object' ||
         Array.isArray(parsedValue.payload)
@@ -184,6 +194,10 @@ export class KafkaManagementSalesConsumerService
 
       if (parsedValue.eventName === SALE_CANCELED_EVENT_NAME) {
         return parsedValue as EventEnvelope<SaleCanceledEventPayload>;
+      }
+
+      if (parsedValue.eventName === INVENTORY_LOSS_REGISTERED_EVENT_NAME) {
+        return parsedValue as EventEnvelope<InventoryLossRegisteredEventPayload>;
       }
 
       return parsedValue as EventEnvelope<RegisterClosedEventPayload>;
@@ -205,6 +219,7 @@ export class KafkaManagementSalesConsumerService
       | EventEnvelope<SaleCompletedEventPayload>
       | EventEnvelope<SaleCanceledEventPayload>
       | EventEnvelope<RegisterClosedEventPayload>
+      | EventEnvelope<InventoryLossRegisteredEventPayload>
   ): Promise<void> {
     if (this.isSaleCompletedEvent(event)) {
       const result = await this.saleCompletedConsumer.handle(event);
@@ -226,6 +241,16 @@ export class KafkaManagementSalesConsumerService
       return;
     }
 
+    if (this.isInventoryLossRegisteredEvent(event)) {
+      const result = await this.inventoryLossRegisteredConsumer.handle(event);
+
+      this.logger.log(
+        `Captured inventory loss ${result.lossId} for business date ${result.businessDate} with status ${result.processingStatus}`
+      );
+
+      return;
+    }
+
     const result = await this.registerClosedConsumer.handle(event);
 
     this.logger.log(
@@ -238,6 +263,7 @@ export class KafkaManagementSalesConsumerService
       | EventEnvelope<SaleCompletedEventPayload>
       | EventEnvelope<SaleCanceledEventPayload>
       | EventEnvelope<RegisterClosedEventPayload>
+      | EventEnvelope<InventoryLossRegisteredEventPayload>
   ): event is EventEnvelope<SaleCompletedEventPayload> {
     return event.eventName === SALE_COMPLETED_EVENT_NAME;
   }
@@ -247,7 +273,18 @@ export class KafkaManagementSalesConsumerService
       | EventEnvelope<SaleCompletedEventPayload>
       | EventEnvelope<SaleCanceledEventPayload>
       | EventEnvelope<RegisterClosedEventPayload>
+      | EventEnvelope<InventoryLossRegisteredEventPayload>
   ): event is EventEnvelope<SaleCanceledEventPayload> {
     return event.eventName === SALE_CANCELED_EVENT_NAME;
+  }
+
+  private isInventoryLossRegisteredEvent(
+    event:
+      | EventEnvelope<SaleCompletedEventPayload>
+      | EventEnvelope<SaleCanceledEventPayload>
+      | EventEnvelope<RegisterClosedEventPayload>
+      | EventEnvelope<InventoryLossRegisteredEventPayload>
+  ): event is EventEnvelope<InventoryLossRegisteredEventPayload> {
+    return event.eventName === INVENTORY_LOSS_REGISTERED_EVENT_NAME;
   }
 }
