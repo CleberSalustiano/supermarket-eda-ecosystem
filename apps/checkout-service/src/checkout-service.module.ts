@@ -8,12 +8,14 @@ import { CHECKOUT_EVENT_PUBLISHER } from './application/ports/checkout-event-pub
 import { CHECKOUT_TRANSACTION_RUNNER } from './application/ports/checkout-transaction-runner.port';
 import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event-repository.port';
+import { OUTBOX_REPLAY_OPTIONS } from './application/ports/outbox-replay.options';
 import { AddSaleItemUseCase } from './application/use-cases/add-sale-item.use-case';
 import { CancelSaleUseCase } from './application/use-cases/cancel-sale.use-case';
 import { ClosePosSessionUseCase } from './application/use-cases/close-pos-session.use-case';
 import { CompleteSaleUseCase } from './application/use-cases/complete-sale.use-case';
 import { OpenPosSessionUseCase } from './application/use-cases/open-pos-session.use-case';
 import { ProcessSalePaymentUseCase } from './application/use-cases/process-sale-payment.use-case';
+import { ReplayPendingOutboxEventsUseCase } from './application/use-cases/replay-pending-outbox-events.use-case';
 import { RemoveSaleItemUseCase } from './application/use-cases/remove-sale-item.use-case';
 import { ScanProductByBarcodeUseCase } from './application/use-cases/scan-product-by-barcode.use-case';
 import { StartSaleUseCase } from './application/use-cases/start-sale.use-case';
@@ -25,10 +27,12 @@ import { PosSessionsController } from './interfaces/http/pos-sessions.controller
 import { ProductCatalogController } from './interfaces/http/product-catalog.controller';
 import { SalesController } from './interfaces/http/sales.controller';
 import { checkoutServiceEnvironment } from './infrastructure/config/checkout-service.environment';
+import { createOutboxReplayOptions } from './infrastructure/config/outbox-replay.options';
 import { checkoutServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
 import { KafkaCheckoutCatalogConsumerService } from './infrastructure/events/kafka-checkout-catalog-consumer.service';
 import { KafkaCheckoutEventPublisherService } from './infrastructure/events/kafka-checkout-event-publisher.service';
 import { ReliableOutboxEventRelayService } from './infrastructure/events/reliable-outbox-event-relay.service';
+import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-replay-worker.service';
 import { TypeormCheckoutTransactionRunner } from './infrastructure/persistence/typeorm/typeorm-checkout-transaction-runner';
 import { TypeormOutboxEventRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-outbox-event.repository';
 import { TypeormPosSessionRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-pos-session.repository';
@@ -50,11 +54,13 @@ import { ProductPriceUpdatedConsumer } from './interfaces/messaging/product-pric
     ProcessSalePaymentUseCase,
     CompleteSaleUseCase,
     CancelSaleUseCase,
+    ReplayPendingOutboxEventsUseCase,
     ScanProductByBarcodeUseCase,
     SynchronizeProductCatalogItemUseCase,
     ProductPriceUpdatedConsumer,
     KafkaCheckoutCatalogConsumerService,
     KafkaCheckoutEventPublisherService,
+    OutboxReplayWorkerService,
     ReliableOutboxEventRelayService,
     TypeormCheckoutTransactionRunner,
     TypeormOutboxEventRepository,
@@ -66,6 +72,10 @@ import { ProductPriceUpdatedConsumer } from './interfaces/messaging/product-pric
       provide: PRODUCT_CATALOG_ITEM_REPOSITORY,
       useFactory: (dataSource: DataSource) => new TypeormProductCatalogItemRepository(dataSource),
       inject: [DataSource]
+    },
+    {
+      provide: OUTBOX_REPLAY_OPTIONS,
+      useValue: createOutboxReplayOptions()
     },
     {
       provide: POS_SESSION_REPOSITORY,

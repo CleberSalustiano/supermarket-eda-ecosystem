@@ -17,6 +17,7 @@ import { MANAGEMENT_EVENT_PUBLISHER } from './application/ports/management-event
 import { MANAGEMENT_TRANSACTION_RUNNER } from './application/ports/management-transaction-runner.port';
 import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event-repository.port';
+import { OUTBOX_REPLAY_OPTIONS } from './application/ports/outbox-replay.options';
 import { KafkaManagementEventPublisherService } from './infrastructure/events/kafka-management-event-publisher.service';
 import { ReliableOutboxEventRelayService } from './infrastructure/events/reliable-outbox-event-relay.service';
 import { HealthController } from './interfaces/http/health.controller';
@@ -28,10 +29,13 @@ import { RegisterClosedConsumer } from './interfaces/messaging/register-closed.c
 import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
 import { managementServiceEnvironment } from './infrastructure/config/management-service.environment';
+import { createOutboxReplayOptions } from './infrastructure/config/outbox-replay.options';
 import { managementServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
+import { ReplayPendingOutboxEventsUseCase } from './application/use-cases/replay-pending-outbox-events.use-case';
 import { TypeormOutboxEventRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-outbox-event.repository';
 import { TypeormManagementTransactionRunner } from './infrastructure/persistence/typeorm/typeorm-management-transaction-runner';
 import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-credential-hasher.service';
+import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-replay-worker.service';
 
 @Module({
   imports: [TypeOrmModule.forRoot(managementServiceDataSourceOptions)],
@@ -42,6 +46,7 @@ import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-
     CompensateCanceledSaleUseCase,
     ConsolidateCompletedSaleUseCase,
     GenerateProfitAndLossReportUseCase,
+    ReplayPendingOutboxEventsUseCase,
     ReconcileRegisterClosureUseCase,
     RegisterEmployeeUseCase,
     RegisterProductUseCase,
@@ -49,6 +54,7 @@ import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-
     InventoryLossRegisteredConsumer,
     KafkaManagementEventPublisherService,
     KafkaManagementSalesConsumerService,
+    OutboxReplayWorkerService,
     RegisterClosedConsumer,
     ReliableOutboxEventRelayService,
     SaleCanceledConsumer,
@@ -67,6 +73,10 @@ import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-
     {
       provide: MANAGEMENT_EVENT_PUBLISHER,
       useExisting: KafkaManagementEventPublisherService
+    },
+    {
+      provide: OUTBOX_REPLAY_OPTIONS,
+      useValue: createOutboxReplayOptions()
     },
     {
       provide: MANAGEMENT_TRANSACTION_RUNNER,

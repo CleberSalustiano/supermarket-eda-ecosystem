@@ -12,6 +12,7 @@ export interface StoredOutboxEvent<TPayload extends EventPayload = EventPayload>
 export interface OutboxEventRepositoryPort {
   save<TPayload extends EventPayload>(event: EventEnvelope<TPayload>): Promise<void>;
   findById(eventId: string): Promise<StoredOutboxEvent | null>;
+  findPendingBatch(limit: number): Promise<StoredOutboxEvent[]>;
   markPublished(eventId: string, publishedAt: Date): Promise<void>;
   registerFailure(eventId: string, failureReason: string): Promise<void>;
 }

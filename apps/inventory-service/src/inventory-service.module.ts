@@ -9,8 +9,10 @@ import { INVENTORY_TRANSACTION_RUNNER } from './application/ports/inventory-tran
 import { LOW_STOCK_ALERT_OPTIONS } from './application/ports/low-stock-alert.options';
 import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event-repository.port';
+import { OUTBOX_REPLAY_OPTIONS } from './application/ports/outbox-replay.options';
 import { EmitLowStockAlertsUseCase } from './application/use-cases/emit-low-stock-alerts.use-case';
 import { ProcessSaleIssueUseCase } from './application/use-cases/process-sale-issue.use-case';
+import { ReplayPendingOutboxEventsUseCase } from './application/use-cases/replay-pending-outbox-events.use-case';
 import { RegisterInventoryLossUseCase } from './application/use-cases/register-inventory-loss.use-case';
 import { RegisterPhysicalInventoryAdjustmentUseCase } from './application/use-cases/register-physical-inventory-adjustment.use-case';
 import { RegisterSupplierInvoiceUseCase } from './application/use-cases/register-supplier-invoice.use-case';
@@ -24,6 +26,7 @@ import { InventoryLossesController } from './interfaces/http/inventory-losses.co
 import { PhysicalInventoryAdjustmentsController } from './interfaces/http/physical-inventory-adjustments.controller';
 import { SupplierInvoicesController } from './interfaces/http/supplier-invoices.controller';
 import { createLowStockAlertOptions } from './infrastructure/config/low-stock-alert.options';
+import { createOutboxReplayOptions } from './infrastructure/config/outbox-replay.options';
 import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
 import { inventoryServiceEnvironment } from './infrastructure/config/inventory-service.environment';
@@ -31,6 +34,7 @@ import { inventoryServiceDataSourceOptions } from './infrastructure/config/typeo
 import { KafkaInventoryEventPublisherService } from './infrastructure/events/kafka-inventory-event-publisher.service';
 import { KafkaInventorySaleConsumerService } from './infrastructure/events/kafka-inventory-sale-consumer.service';
 import { ReliableOutboxEventRelayService } from './infrastructure/events/reliable-outbox-event-relay.service';
+import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-replay-worker.service';
 import { LowStockAlertWorkerService } from './infrastructure/workers/low-stock-alert-worker.service';
 import { TypeormInventoryTransactionRunner } from './infrastructure/persistence/typeorm/typeorm-inventory-transaction-runner';
 import { TypeormInventoryLossRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-inventory-loss.repository';
@@ -51,7 +55,9 @@ import { TypeormStockMovementRepository } from './infrastructure/persistence/typ
     AppLoggerService,
     EmitLowStockAlertsUseCase,
     LowStockAlertWorkerService,
+    OutboxReplayWorkerService,
     ProcessSaleIssueUseCase,
+    ReplayPendingOutboxEventsUseCase,
     RegisterInventoryLossUseCase,
     RegisterPhysicalInventoryAdjustmentUseCase,
     RegisterSupplierInvoiceUseCase,
@@ -70,6 +76,10 @@ import { TypeormStockMovementRepository } from './infrastructure/persistence/typ
     {
       provide: LOW_STOCK_ALERT_OPTIONS,
       useValue: createLowStockAlertOptions()
+    },
+    {
+      provide: OUTBOX_REPLAY_OPTIONS,
+      useValue: createOutboxReplayOptions()
     },
     {
       provide: INVENTORY_EVENT_PUBLISHER,

@@ -44,7 +44,7 @@ module.exports = {
       displayName: 'unit:checkout-service',
       rootDir: 'apps/checkout-service',
       testMatch: '<rootDir>/test/**/*.spec.ts',
-      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
+      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$', '\\.integration-spec\\.ts$'],
       tsconfig: '<rootDir>/tsconfig.spec.json',
       coverageDirectory: path.join(__dirname, 'coverage/unit/checkout-service')
     }),
@@ -52,7 +52,7 @@ module.exports = {
       displayName: 'unit:inventory-service',
       rootDir: 'apps/inventory-service',
       testMatch: '<rootDir>/test/**/*.spec.ts',
-      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
+      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$', '\\.integration-spec\\.ts$'],
       tsconfig: '<rootDir>/tsconfig.spec.json',
       coverageDirectory: path.join(__dirname, 'coverage/unit/inventory-service')
     }),
@@ -60,7 +60,7 @@ module.exports = {
       displayName: 'unit:management-service',
       rootDir: 'apps/management-service',
       testMatch: '<rootDir>/test/**/*.spec.ts',
-      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$'],
+      testPathIgnorePatterns: ['\\.e2e-spec\\.ts$', '\\.integration-spec\\.ts$'],
       tsconfig: '<rootDir>/tsconfig.spec.json',
       coverageDirectory: path.join(__dirname, 'coverage/unit/management-service')
     }),
@@ -100,6 +100,27 @@ module.exports = {
       testMatch: '<rootDir>/test/**/*.e2e-spec.ts',
       tsconfig: '<rootDir>/tsconfig.spec.json',
       coverageDirectory: path.join(__dirname, 'coverage/e2e/management-service')
+    }),
+    createProjectConfig({
+      displayName: 'integration:checkout-service',
+      rootDir: 'apps/checkout-service',
+      testMatch: '<rootDir>/test/**/*.integration-spec.ts',
+      tsconfig: '<rootDir>/tsconfig.spec.json',
+      coverageDirectory: path.join(__dirname, 'coverage/integration/checkout-service')
+    }),
+    createProjectConfig({
+      displayName: 'integration:inventory-service',
+      rootDir: 'apps/inventory-service',
+      testMatch: '<rootDir>/test/**/*.integration-spec.ts',
+      tsconfig: '<rootDir>/tsconfig.spec.json',
+      coverageDirectory: path.join(__dirname, 'coverage/integration/inventory-service')
+    }),
+    createProjectConfig({
+      displayName: 'integration:management-service',
+      rootDir: 'apps/management-service',
+      testMatch: '<rootDir>/test/**/*.integration-spec.ts',
+      tsconfig: '<rootDir>/tsconfig.spec.json',
+      coverageDirectory: path.join(__dirname, 'coverage/integration/management-service')
     })
   ]
 };

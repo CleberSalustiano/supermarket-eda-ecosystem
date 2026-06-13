@@ -64,6 +64,30 @@ export class TypeormOutboxEventRepository implements OutboxEventRepositoryPort {
     };
   }
 
+  async findPendingBatch(limit: number): Promise<StoredOutboxEvent[]> {
+    const entities = await this.repositoryAccessor
+      .getRepository(OutboxEventTypeormEntity)
+      .createQueryBuilder('outboxEvent')
+      .where('"outboxEvent"."publishedAt" IS NULL')
+      .orderBy('"outboxEvent"."occurredAt"', 'ASC')
+      .addOrderBy('"outboxEvent"."attempts"', 'ASC')
+      .limit(limit)
+      .getMany();
+
+    return entities.map((entity) => ({
+      eventId: entity.id,
+      eventName: entity.eventName,
+      topic: entity.topic,
+      aggregateId: entity.aggregateId,
+      tenantId: entity.tenantId,
+      occurredAt: entity.occurredAt.toISOString(),
+      payload: entity.payload as unknown as StoredOutboxEvent['payload'],
+      attempts: entity.attempts,
+      failureReason: entity.failureReason,
+      publishedAt: entity.publishedAt?.toISOString() ?? null
+    }));
+  }
+
   async markPublished(eventId: string, publishedAt: Date): Promise<void> {
     await this.repositoryAccessor.getRepository(OutboxEventTypeormEntity).update(
       {

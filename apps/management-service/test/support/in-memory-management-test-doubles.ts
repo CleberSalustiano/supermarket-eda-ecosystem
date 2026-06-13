@@ -401,6 +401,22 @@ export class InMemoryOutboxEventRepository implements OutboxEventRepositoryPort 
     return this.items.get(eventId) ?? null;
   }
 
+  async findPendingBatch(limit: number): Promise<StoredOutboxEvent[]> {
+    return [...this.items.values()]
+      .filter((event) => event.publishedAt === null)
+      .sort((left, right) => {
+        const occurredAtComparison =
+          new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime();
+
+        if (occurredAtComparison !== 0) {
+          return occurredAtComparison;
+        }
+
+        return left.attempts - right.attempts;
+      })
+      .slice(0, limit);
+  }
+
   async markPublished(eventId: string, publishedAt: Date): Promise<void> {
     const event = this.items.get(eventId);
 
