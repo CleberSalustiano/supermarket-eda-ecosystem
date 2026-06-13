@@ -9,6 +9,7 @@ export interface InventoryItemPrimitives {
   onHandQuantity: number;
   minimumThreshold: number;
   averageUnitCost: number | null;
+  lastLowStockAlertAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +23,7 @@ interface InitializeInventoryItemInput {
   onHandQuantity?: number;
   minimumThreshold?: number;
   averageUnitCost?: number | null;
+  lastLowStockAlertAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,6 +37,7 @@ interface RehydrateInventoryItemInput {
   onHandQuantity: number;
   minimumThreshold: number;
   averageUnitCost: number | null;
+  lastLowStockAlertAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +75,15 @@ interface ReceiveStockInput {
   updatedAt?: Date;
 }
 
+interface ApplyPhysicalCountInput {
+  barcode: string;
+  name: string;
+  unitOfMeasure: string;
+  countedQuantity: number;
+  minimumThreshold?: number;
+  updatedAt?: Date;
+}
+
 export class InventoryItem {
   private constructor(
     private readonly productId: string,
@@ -82,6 +94,7 @@ export class InventoryItem {
     private onHandQuantity: number,
     private minimumThreshold: number,
     private averageUnitCost: number | null,
+    private lastLowStockAlertAt: Date | null,
     private readonly createdAt: Date,
     private updatedAt: Date
   ) {}
@@ -98,6 +111,7 @@ export class InventoryItem {
       normalizeWholeNumber(input.onHandQuantity ?? 0, 'On-hand quantity'),
       normalizeWholeNumber(input.minimumThreshold ?? 0, 'Minimum threshold'),
       normalizeOptionalMoney(input.averageUnitCost),
+      normalizeOptionalDate(input.lastLowStockAlertAt, 'Last low stock alert at'),
       ensureDate(input.createdAt ?? now, 'Created at'),
       ensureDate(input.updatedAt ?? now, 'Updated at')
     );
@@ -113,6 +127,7 @@ export class InventoryItem {
       normalizeInteger(input.onHandQuantity, 'On-hand quantity'),
       normalizeWholeNumber(input.minimumThreshold, 'Minimum threshold'),
       normalizeOptionalMoney(input.averageUnitCost),
+      normalizeOptionalDate(input.lastLowStockAlertAt, 'Last low stock alert at'),
       ensureDate(input.createdAt, 'Created at'),
       ensureDate(input.updatedAt, 'Updated at')
     );
@@ -136,6 +151,7 @@ export class InventoryItem {
 
     this.onHandQuantity = nextOnHandQuantity;
     this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+    this.refreshLowStockAlertState();
   }
 
   issueSale(input: IssueSaleInput): void {
@@ -144,6 +160,7 @@ export class InventoryItem {
     this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
     this.onHandQuantity -= quantity;
     this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+    this.refreshLowStockAlertState();
   }
 
   revertSaleIssue(input: RevertSaleIssueInput): void {
@@ -152,6 +169,7 @@ export class InventoryItem {
     this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
     this.onHandQuantity += quantity;
     this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+    this.refreshLowStockAlertState();
   }
 
   registerLoss(input: RegisterLossInput): void {
@@ -160,6 +178,43 @@ export class InventoryItem {
     this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
     this.onHandQuantity -= quantity;
     this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+    this.refreshLowStockAlertState();
+  }
+
+  applyPhysicalCount(input: ApplyPhysicalCountInput): number {
+    const countedQuantity = normalizeWholeNumber(input.countedQuantity, 'Counted quantity');
+    const quantityDelta = countedQuantity - this.onHandQuantity;
+
+    this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
+
+    if (input.minimumThreshold !== undefined) {
+      this.minimumThreshold = normalizeWholeNumber(input.minimumThreshold, 'Minimum threshold');
+    }
+
+    this.onHandQuantity = countedQuantity;
+    this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
+    this.refreshLowStockAlertState();
+
+    return quantityDelta;
+  }
+
+  shouldEmitLowStockAlert(cooldownCutoff: Date): boolean {
+    const normalizedCutoff = ensureDate(cooldownCutoff, 'Low stock alert cooldown cutoff');
+
+    return (
+      this.isBelowMinimumThreshold() &&
+      (this.lastLowStockAlertAt === null ||
+        this.lastLowStockAlertAt.getTime() <= normalizedCutoff.getTime())
+    );
+  }
+
+  markLowStockAlertEmitted(emittedAt: Date): void {
+    if (!this.isBelowMinimumThreshold()) {
+      throw new DomainValidationError('Cannot mark a low stock alert for an item above threshold');
+    }
+
+    this.lastLowStockAlertAt = ensureDate(emittedAt, 'Low stock alert emitted at');
+    this.updatedAt = ensureDate(emittedAt, 'Updated at');
   }
 
   toPrimitives(): InventoryItemPrimitives {
@@ -172,6 +227,7 @@ export class InventoryItem {
       onHandQuantity: this.onHandQuantity,
       minimumThreshold: this.minimumThreshold,
       averageUnitCost: this.averageUnitCost,
+      lastLowStockAlertAt: this.lastLowStockAlertAt?.toISOString() ?? null,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
@@ -181,6 +237,16 @@ export class InventoryItem {
     this.barcode = normalizeBarcode(barcode);
     this.name = normalizeRequiredString(name, 'Product name');
     this.unitOfMeasure = normalizeUnitOfMeasure(unitOfMeasure);
+  }
+
+  private isBelowMinimumThreshold(): boolean {
+    return this.minimumThreshold > 0 && this.onHandQuantity <= this.minimumThreshold;
+  }
+
+  private refreshLowStockAlertState(): void {
+    if (!this.isBelowMinimumThreshold()) {
+      this.lastLowStockAlertAt = null;
+    }
   }
 }
 
@@ -236,6 +302,14 @@ function normalizeOptionalMoney(value: number | null | undefined): number | null
   }
 
   return normalizeMoney(value, 'Average unit cost');
+}
+
+function normalizeOptionalDate(value: Date | null | undefined, label: string): Date | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return ensureDate(value, label);
 }
 
 function normalizeMoney(value: number, label: string): number {

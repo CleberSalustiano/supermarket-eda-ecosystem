@@ -28,11 +28,13 @@ import type {
 } from '#/application/ports/outbox-event-repository.port';
 import { InventoryLoss } from '#/domain/entities/inventory-loss.entity';
 import { InventoryItem } from '#/domain/entities/inventory-item.entity';
+import { PhysicalInventoryAdjustment } from '#/domain/entities/physical-inventory-adjustment.entity';
 import { ProcessedEvent } from '#/domain/entities/processed-event.entity';
 import { StockMovement } from '#/domain/entities/stock-movement.entity';
 import { SupplierInvoice } from '#/domain/entities/supplier-invoice.entity';
 import type { InventoryLossRepositoryPort } from '#/domain/repositories/inventory-loss.repository';
 import type { InventoryItemRepositoryPort } from '#/domain/repositories/inventory-item.repository';
+import type { PhysicalInventoryAdjustmentRepositoryPort } from '#/domain/repositories/physical-inventory-adjustment.repository';
 import type { ProcessedEventRepositoryPort } from '#/domain/repositories/processed-event.repository';
 import type { StockMovementRepositoryPort } from '#/domain/repositories/stock-movement.repository';
 import type { SupplierInvoiceRepositoryPort } from '#/domain/repositories/supplier-invoice.repository';
@@ -42,6 +44,23 @@ export class InMemoryInventoryItemRepository implements InventoryItemRepositoryP
 
   async findByProductId(tenantId: string, productId: string): Promise<InventoryItem | null> {
     return this.items.get(buildKey(tenantId, productId)) ?? null;
+  }
+
+  async findLowStockCandidates(cooldownCutoff: Date, limit: number): Promise<InventoryItem[]> {
+    return [...this.items.values()]
+      .filter((item) => item.shouldEmitLowStockAlert(cooldownCutoff))
+      .sort((left, right) => {
+        const leftState = left.toPrimitives();
+        const rightState = right.toPrimitives();
+        const tenantComparison = leftState.tenantId.localeCompare(rightState.tenantId);
+
+        if (tenantComparison !== 0) {
+          return tenantComparison;
+        }
+
+        return leftState.barcode.localeCompare(rightState.barcode);
+      })
+      .slice(0, limit);
   }
 
   async save(item: InventoryItem): Promise<void> {
@@ -65,6 +84,22 @@ export class InMemoryInventoryLossRepository implements InventoryLossRepositoryP
   }
 
   all(): InventoryLoss[] {
+    return [...this.items.values()];
+  }
+}
+
+export class InMemoryPhysicalInventoryAdjustmentRepository
+  implements PhysicalInventoryAdjustmentRepositoryPort
+{
+  private readonly items = new Map<string, PhysicalInventoryAdjustment>();
+
+  async save(adjustment: PhysicalInventoryAdjustment): Promise<void> {
+    const adjustmentState = adjustment.toPrimitives();
+
+    this.items.set(adjustmentState.id, adjustment);
+  }
+
+  all(): PhysicalInventoryAdjustment[] {
     return [...this.items.values()];
   }
 }
@@ -202,6 +237,7 @@ interface InMemoryInventoryTransactionRunnerOptions {
   inventoryLossRepository?: InMemoryInventoryLossRepository;
   inventoryItemRepository?: InMemoryInventoryItemRepository;
   outboxEventRepository?: InMemoryOutboxEventRepository;
+  physicalInventoryAdjustmentRepository?: InMemoryPhysicalInventoryAdjustmentRepository;
   processedEventRepository?: InMemoryProcessedEventRepository;
   stockMovementRepository?: InMemoryStockMovementRepository;
   supplierInvoiceRepository?: InMemorySupplierInvoiceRepository;
@@ -216,6 +252,9 @@ export class InMemoryInventoryTransactionRunner implements InventoryTransactionR
         options.inventoryLossRepository ?? new InMemoryInventoryLossRepository(),
       inventoryItemRepository: options.inventoryItemRepository ?? new InMemoryInventoryItemRepository(),
       outboxEventRepository: options.outboxEventRepository ?? new InMemoryOutboxEventRepository(),
+      physicalInventoryAdjustmentRepository:
+        options.physicalInventoryAdjustmentRepository ??
+        new InMemoryPhysicalInventoryAdjustmentRepository(),
       processedEventRepository:
         options.processedEventRepository ?? new InMemoryProcessedEventRepository(),
       stockMovementRepository:

@@ -26,6 +26,22 @@ export class TypeormInventoryItemRepository implements InventoryItemRepositoryPo
     return entity ? toDomain(entity) : null;
   }
 
+  async findLowStockCandidates(cooldownCutoff: Date, limit: number): Promise<InventoryItem[]> {
+    const entities = await this.repositoryAccessor
+      .getRepository(InventoryItemTypeormEntity)
+      .createQueryBuilder('inventoryItem')
+      .where('"inventoryItem"."minimumThreshold" > 0')
+      .andWhere('"inventoryItem"."onHandQuantity" <= "inventoryItem"."minimumThreshold"')
+      .orderBy('"inventoryItem"."tenantId"', 'ASC')
+      .addOrderBy('"inventoryItem"."barcode"', 'ASC')
+      .limit(limit)
+      .getMany();
+
+    return entities
+      .map((entity) => toDomain(entity))
+      .filter((item) => item.shouldEmitLowStockAlert(cooldownCutoff));
+  }
+
   async save(item: InventoryItem): Promise<void> {
     const itemState = item.toPrimitives();
 
@@ -38,6 +54,9 @@ export class TypeormInventoryItemRepository implements InventoryItemRepositoryPo
       onHandQuantity: itemState.onHandQuantity,
       minimumThreshold: itemState.minimumThreshold,
       averageUnitCost: itemState.averageUnitCost,
+      lastLowStockAlertAt: itemState.lastLowStockAlertAt
+        ? new Date(itemState.lastLowStockAlertAt)
+        : null,
       createdAt: new Date(itemState.createdAt),
       updatedAt: new Date(itemState.updatedAt)
     });
@@ -54,6 +73,7 @@ function toDomain(entity: InventoryItemTypeormEntity): InventoryItem {
     onHandQuantity: entity.onHandQuantity,
     minimumThreshold: entity.minimumThreshold,
     averageUnitCost: entity.averageUnitCost,
+    lastLowStockAlertAt: entity.lastLowStockAlertAt,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt
   });

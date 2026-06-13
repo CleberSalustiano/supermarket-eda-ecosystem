@@ -1,6 +1,11 @@
 import { DomainValidationError, InventoryLossReason } from '@supermarket/shared-domain';
 
-export type StockMovementType = 'SALE_ISSUE' | 'SALE_REVERSION' | 'LOSS' | 'RECEIPT';
+export type StockMovementType =
+  | 'SALE_ISSUE'
+  | 'SALE_REVERSION'
+  | 'LOSS'
+  | 'RECEIPT'
+  | 'PHYSICAL_ADJUSTMENT';
 
 export interface StockMovementPrimitives {
   id: string;
@@ -57,6 +62,17 @@ interface RecordReceiptInput {
   referenceId: string;
   referenceEventId: string;
   supplierReference: string;
+  occurredAt: Date;
+  createdAt?: Date;
+}
+
+interface RecordPhysicalAdjustmentInput {
+  id: string;
+  tenantId: string;
+  productId: string;
+  quantityDelta: number;
+  referenceId: string;
+  referenceEventId: string;
   occurredAt: Date;
   createdAt?: Date;
 }
@@ -156,12 +172,34 @@ export class StockMovement {
     );
   }
 
+  static recordPhysicalAdjustment(input: RecordPhysicalAdjustmentInput): StockMovement {
+    const quantityDelta = normalizeInteger(input.quantityDelta, 'Physical adjustment quantity delta');
+
+    if (quantityDelta === 0) {
+      throw new DomainValidationError('Physical adjustment quantity delta cannot be zero');
+    }
+
+    return new StockMovement(
+      normalizeIdentifier(input.id, 'Stock movement id'),
+      normalizeIdentifier(input.tenantId, 'Tenant id'),
+      normalizeIdentifier(input.productId, 'Product id'),
+      'PHYSICAL_ADJUSTMENT',
+      quantityDelta,
+      normalizeIdentifier(input.referenceId, 'Reference id'),
+      normalizeIdentifier(input.referenceEventId, 'Reference event id'),
+      'Physical inventory adjustment',
+      ensureDate(input.occurredAt, 'Occurred at'),
+      ensureDate(input.createdAt ?? input.occurredAt, 'Created at')
+    );
+  }
+
   static rehydrate(input: RehydrateStockMovementInput): StockMovement {
     if (
       input.movementType !== 'SALE_ISSUE' &&
       input.movementType !== 'SALE_REVERSION' &&
       input.movementType !== 'LOSS' &&
-      input.movementType !== 'RECEIPT'
+      input.movementType !== 'RECEIPT' &&
+      input.movementType !== 'PHYSICAL_ADJUSTMENT'
     ) {
       throw new DomainValidationError(`Stock movement type ${input.movementType} is invalid`);
     }
@@ -186,6 +224,12 @@ export class StockMovement {
 
     if (input.movementType === 'RECEIPT' && input.quantityDelta <= 0) {
       throw new DomainValidationError('Receipt stock movement must have a positive quantity delta');
+    }
+
+    if (input.movementType === 'PHYSICAL_ADJUSTMENT' && input.quantityDelta === 0) {
+      throw new DomainValidationError(
+        'Physical adjustment stock movement cannot have a zero quantity delta'
+      );
     }
 
     return new StockMovement(
@@ -235,6 +279,14 @@ function normalizeRequiredString(value: string, label: string): string {
 function normalizePositiveInteger(value: number, label: string): number {
   if (!Number.isInteger(value) || value <= 0) {
     throw new DomainValidationError(`${label} must be a positive integer`);
+  }
+
+  return value;
+}
+
+function normalizeInteger(value: number, label: string): number {
+  if (!Number.isInteger(value)) {
+    throw new DomainValidationError(`${label} must be an integer`);
   }
 
   return value;
