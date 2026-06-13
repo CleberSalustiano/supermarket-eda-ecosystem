@@ -10,6 +10,7 @@ import { TypeormCashReconciliationRepository } from './repositories/typeorm-cash
 import { TypeormDailyFinancialConsolidationRepository } from './repositories/typeorm-daily-financial-consolidation.repository';
 import { TypeormEmployeeRepository } from './repositories/typeorm-employee.repository';
 import { TypeormFinancialEntryRepository } from './repositories/typeorm-financial-entry.repository';
+import { TypeormInventoryLossEntryRepository } from './repositories/typeorm-inventory-loss-entry.repository';
 import { TypeormOutboxEventRepository } from './repositories/typeorm-outbox-event.repository';
 import { TypeormProcessedEventRepository } from './repositories/typeorm-processed-event.repository';
 import { TypeormProductRepository } from './repositories/typeorm-product.repository';
@@ -27,6 +28,7 @@ export class TypeormManagementTransactionRunner implements ManagementTransaction
         ),
         employeeRepository: new TypeormEmployeeRepository(manager),
         financialEntryRepository: new TypeormFinancialEntryRepository(manager),
+        inventoryLossEntryRepository: new TypeormInventoryLossEntryRepository(manager),
         outboxEventRepository: new TypeormOutboxEventRepository(manager),
         processedEventRepository: new TypeormProcessedEventRepository(manager),
         productRepository: new TypeormProductRepository(manager)

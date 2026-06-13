@@ -3,10 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { SERVICE_ENVIRONMENT, AppLoggerService } from '@supermarket/shared-infra';
 
+import { CaptureInventoryLossUseCase } from './application/use-cases/capture-inventory-loss.use-case';
 import { RegisterEmployeeUseCase } from './application/use-cases/register-employee.use-case';
 import { RegisterProductUseCase } from './application/use-cases/register-product.use-case';
 import { CompensateCanceledSaleUseCase } from './application/use-cases/compensate-canceled-sale.use-case';
 import { ConsolidateCompletedSaleUseCase } from './application/use-cases/consolidate-completed-sale.use-case';
+import { GenerateProfitAndLossReportUseCase } from './application/use-cases/generate-profit-and-loss-report.use-case';
 import { ReconcileRegisterClosureUseCase } from './application/use-cases/reconcile-register-closure.use-case';
 import { UpdateProductPriceUseCase } from './application/use-cases/update-product-price.use-case';
 import { KafkaManagementSalesConsumerService } from './infrastructure/events/kafka-management-sales-consumer.service';
@@ -20,6 +22,8 @@ import { ReliableOutboxEventRelayService } from './infrastructure/events/reliabl
 import { HealthController } from './interfaces/http/health.controller';
 import { EmployeesController } from './interfaces/http/employees.controller';
 import { ProductsController } from './interfaces/http/products.controller';
+import { ReportsController } from './interfaces/http/reports.controller';
+import { InventoryLossRegisteredConsumer } from './interfaces/messaging/inventory-loss-registered.consumer';
 import { RegisterClosedConsumer } from './interfaces/messaging/register-closed.consumer';
 import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
@@ -31,15 +35,18 @@ import { ScryptCredentialHasherService } from './infrastructure/security/scrypt-
 
 @Module({
   imports: [TypeOrmModule.forRoot(managementServiceDataSourceOptions)],
-  controllers: [HealthController, ProductsController, EmployeesController],
+  controllers: [HealthController, ProductsController, EmployeesController, ReportsController],
   providers: [
     AppLoggerService,
+    CaptureInventoryLossUseCase,
     CompensateCanceledSaleUseCase,
     ConsolidateCompletedSaleUseCase,
+    GenerateProfitAndLossReportUseCase,
     ReconcileRegisterClosureUseCase,
     RegisterEmployeeUseCase,
     RegisterProductUseCase,
     UpdateProductPriceUseCase,
+    InventoryLossRegisteredConsumer,
     KafkaManagementEventPublisherService,
     KafkaManagementSalesConsumerService,
     RegisterClosedConsumer,

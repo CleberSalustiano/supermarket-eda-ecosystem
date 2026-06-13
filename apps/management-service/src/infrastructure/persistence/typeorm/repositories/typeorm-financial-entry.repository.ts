@@ -1,6 +1,9 @@
 import { SalePaymentMethod } from '@supermarket/shared-domain';
 
-import type { FinancialEntryRepositoryPort } from '#/domain/repositories/financial-entry.repository';
+import type {
+  FinancialEntryBusinessDateSummary,
+  FinancialEntryRepositoryPort
+} from '#/domain/repositories/financial-entry.repository';
 import { FinancialEntry } from '#/domain/entities/financial-entry.entity';
 import { FinancialEntryTypeormEntity } from '../entities/financial-entry.typeorm-entity';
 import {
@@ -91,6 +94,79 @@ export class TypeormFinancialEntryRepository implements FinancialEntryRepository
 
     return Number.parseFloat(Number(value).toFixed(2));
   }
+
+  async summarizeByBusinessDateRange(
+    tenantId: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<FinancialEntryBusinessDateSummary[]> {
+    const rows = (await this.repositoryAccessor
+      .getRepository(FinancialEntryTypeormEntity)
+      .createQueryBuilder('financialEntry')
+      .select('"financialEntry"."businessDate"', 'businessDate')
+      .addSelect(
+        `
+          COALESCE(
+            SUM(
+              CASE
+                WHEN "financialEntry"."entryType" = 'SALE_REVENUE' THEN "financialEntry"."grossAmount"
+                ELSE "financialEntry"."grossAmount" * -1
+              END
+            ),
+            0
+          )
+        `,
+        'revenueNetTotal'
+      )
+      .addSelect(
+        `
+          COALESCE(
+            SUM(
+              CASE
+                WHEN "financialEntry"."entryType" = 'SALE_REVENUE' THEN 1
+                ELSE -1
+              END
+            ),
+            0
+          )
+        `,
+        'netSalesCount'
+      )
+      .addSelect(
+        `
+          COALESCE(
+            SUM(
+              CASE
+                WHEN "financialEntry"."entryType" = 'SALE_REVENUE' THEN "financialEntry"."totalItemsQuantity"
+                ELSE "financialEntry"."totalItemsQuantity" * -1
+              END
+            ),
+            0
+          )
+        `,
+        'soldItemsQuantity'
+      )
+      .where('"financialEntry"."tenantId" = :tenantId', { tenantId })
+      .andWhere('"financialEntry"."businessDate" BETWEEN :fromDate AND :toDate', {
+        fromDate,
+        toDate
+      })
+      .groupBy('"financialEntry"."businessDate"')
+      .orderBy('"financialEntry"."businessDate"', 'ASC')
+      .getRawMany()) as Array<{
+      businessDate: string | Date;
+      revenueNetTotal: string | number;
+      netSalesCount: string | number;
+      soldItemsQuantity: string | number;
+    }>;
+
+    return rows.map((row) => ({
+      businessDate: normalizeBusinessDateValue(row.businessDate),
+      revenueNetTotal: Number.parseFloat(Number(row.revenueNetTotal).toFixed(2)),
+      netSalesCount: Number.parseInt(String(row.netSalesCount), 10),
+      soldItemsQuantity: Number.parseInt(String(row.soldItemsQuantity), 10)
+    }));
+  }
 }
 
 function toDomain(entity: FinancialEntryTypeormEntity): FinancialEntry {
@@ -116,4 +192,12 @@ function toDomain(entity: FinancialEntryTypeormEntity): FinancialEntry {
     occurredAt: entity.occurredAt,
     createdAt: entity.createdAt
   });
+}
+
+function normalizeBusinessDateValue(value: string | Date): string {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return value.trim();
 }

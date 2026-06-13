@@ -1,16 +1,21 @@
 import type {
   EventEnvelope,
   EventPayload,
+  InventoryLossRegisteredEventPayload,
   RegisterClosedEventPayload,
   SaleCanceledEventPayload,
   SaleCompletedEventPayload
 } from '@supermarket/shared-domain';
-import { SalePaymentMethod } from '@supermarket/shared-domain';
+import {
+  InventoryLossReason,
+  SalePaymentMethod
+} from '@supermarket/shared-domain';
 
 import { CashReconciliation } from '#/domain/entities/cash-reconciliation.entity';
 import { DailyFinancialConsolidation } from '#/domain/entities/daily-financial-consolidation.entity';
 import { Employee } from '#/domain/entities/employee.entity';
 import { FinancialEntry } from '#/domain/entities/financial-entry.entity';
+import { InventoryLossEntry } from '#/domain/entities/inventory-loss-entry.entity';
 import { ProcessedEvent } from '#/domain/entities/processed-event.entity';
 import { Product } from '#/domain/entities/product.entity';
 import type { CredentialHasherPort } from '#/application/ports/credential-hasher.port';
@@ -27,6 +32,13 @@ import type { DailyFinancialConsolidationRepositoryPort } from '#/domain/reposit
 import type { EmployeeRepositoryPort } from '#/domain/repositories/employee.repository';
 import type { CashReconciliationRepositoryPort } from '#/domain/repositories/cash-reconciliation.repository';
 import type { FinancialEntryRepositoryPort } from '#/domain/repositories/financial-entry.repository';
+import type {
+  FinancialEntryBusinessDateSummary,
+} from '#/domain/repositories/financial-entry.repository';
+import type {
+  InventoryLossEntryBusinessDateSummary,
+  InventoryLossEntryRepositoryPort
+} from '#/domain/repositories/inventory-loss-entry.repository';
 import type { ProcessedEventRepositoryPort } from '#/domain/repositories/processed-event.repository';
 import type { ProductRepositoryPort } from '#/domain/repositories/product.repository';
 import type { IntegrationEventPublicationStatus } from '#/application/dto/integration-event-publication-status';
@@ -133,7 +145,115 @@ export class InMemoryFinancialEntryRepository implements FinancialEntryRepositor
     return Number.parseFloat(netCash.toFixed(2));
   }
 
+  async summarizeByBusinessDateRange(
+    tenantId: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<FinancialEntryBusinessDateSummary[]> {
+    const summaries = new Map<
+      string,
+      {
+        businessDate: string;
+        revenueNetTotal: number;
+        netSalesCount: number;
+        soldItemsQuantity: number;
+      }
+    >();
+
+    for (const entry of this.items.values()) {
+      const entryState = entry.toPrimitives();
+
+      if (
+        entryState.tenantId !== tenantId ||
+        entryState.businessDate < fromDate ||
+        entryState.businessDate > toDate
+      ) {
+        continue;
+      }
+
+      const existingSummary = summaries.get(entryState.businessDate) ?? {
+        businessDate: entryState.businessDate,
+        revenueNetTotal: 0,
+        netSalesCount: 0,
+        soldItemsQuantity: 0
+      };
+
+      existingSummary.revenueNetTotal = Number.parseFloat(
+        (existingSummary.revenueNetTotal + entry.contributesGrossSales()).toFixed(2)
+      );
+      existingSummary.netSalesCount += entry.contributesSalesCount();
+      existingSummary.soldItemsQuantity += entry.contributesItemsQuantity();
+
+      summaries.set(entryState.businessDate, existingSummary);
+    }
+
+    return [...summaries.values()].sort((left, right) =>
+      left.businessDate.localeCompare(right.businessDate)
+    );
+  }
+
   all(): FinancialEntry[] {
+    return [...this.items.values()];
+  }
+}
+
+export class InMemoryInventoryLossEntryRepository
+  implements InventoryLossEntryRepositoryPort
+{
+  private readonly items = new Map<string, InventoryLossEntry>();
+
+  async saveIfAbsent(entry: InventoryLossEntry): Promise<boolean> {
+    const entryState = entry.toPrimitives();
+
+    if (this.items.has(entryState.sourceEventId)) {
+      return false;
+    }
+
+    this.items.set(entryState.sourceEventId, entry);
+
+    return true;
+  }
+
+  async summarizeByBusinessDateRange(
+    tenantId: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<InventoryLossEntryBusinessDateSummary[]> {
+    const summaries = new Map<string, InventoryLossEntryBusinessDateSummary>();
+
+    for (const entry of this.items.values()) {
+      const entryState = entry.toPrimitives();
+
+      if (
+        entryState.tenantId !== tenantId ||
+        entryState.businessDate < fromDate ||
+        entryState.businessDate > toDate
+      ) {
+        continue;
+      }
+
+      const existingSummary = summaries.get(entryState.businessDate) ?? {
+        businessDate: entryState.businessDate,
+        lossAmountTotal: 0,
+        lossItemsQuantity: 0,
+        lossEventsCount: 0
+      };
+
+      existingSummary.lossAmountTotal = Number.parseFloat(
+        (existingSummary.lossAmountTotal + entry.totalAmount()).toFixed(2)
+      );
+      existingSummary.lossItemsQuantity += entry.quantityValue();
+      existingSummary.lossEventsCount += 1;
+
+      summaries.set(entryState.businessDate, existingSummary);
+    }
+
+    return [...summaries.values()].sort((left, right) =>
+      left.businessDate.localeCompare(right.businessDate)
+    );
+  }
+
+  all(): InventoryLossEntry[] {
     return [...this.items.values()];
   }
 }
@@ -322,6 +442,7 @@ export class InMemoryManagementTransactionRunner implements ManagementTransactio
   readonly productRepository = new InMemoryProductRepository();
   readonly employeeRepository = new InMemoryEmployeeRepository();
   readonly financialEntryRepository = new InMemoryFinancialEntryRepository();
+  readonly inventoryLossEntryRepository = new InMemoryInventoryLossEntryRepository();
   readonly outboxEventRepository = new InMemoryOutboxEventRepository();
   readonly processedEventRepository = new InMemoryProcessedEventRepository();
 
@@ -332,6 +453,7 @@ export class InMemoryManagementTransactionRunner implements ManagementTransactio
       productRepository: this.productRepository,
       employeeRepository: this.employeeRepository,
       financialEntryRepository: this.financialEntryRepository,
+      inventoryLossEntryRepository: this.inventoryLossEntryRepository,
       outboxEventRepository: this.outboxEventRepository,
       processedEventRepository: this.processedEventRepository
     });
@@ -461,6 +583,36 @@ export function createRegisterClosedEventFixture(
     aggregateId: payload.sessionId,
     tenantId: payload.tenantId,
     occurredAt: '2026-06-09T22:30:01.000Z',
+    payload
+  };
+}
+
+export function createInventoryLossRegisteredEventFixture(
+  overrides: Partial<InventoryLossRegisteredEventPayload> = {}
+): EventEnvelope<InventoryLossRegisteredEventPayload> {
+  const payload: InventoryLossRegisteredEventPayload = {
+    lossId: '1fe8633f-074d-495d-a534-5c1db96c28cf',
+    stockMovementId: '6102b0fe-55ee-4df8-b70d-84f3e65aea67',
+    productId: '8f84026c-9fdb-4e76-af24-4c5f48f0e8ec',
+    barcode: '7891000000410',
+    name: 'Ground Coffee',
+    unitOfMeasure: 'UNIT',
+    quantity: 2,
+    reasonCode: InventoryLossReason.Damaged,
+    notes: 'Broken package',
+    onHandQuantityAfterLoss: 8,
+    recordedAt: '2026-06-09T23:00:00.000Z',
+    tenantId: 'eebf4667-1f0d-42d7-893b-b5da98f30239',
+    ...overrides
+  };
+
+  return {
+    eventId: 'db2920df-f14c-4438-8709-25cea1454a96',
+    eventName: 'InventoryLossRegistered',
+    topic: 'inventory.loss.registered',
+    aggregateId: payload.lossId,
+    tenantId: payload.tenantId,
+    occurredAt: '2026-06-09T23:00:01.000Z',
     payload
   };
 }
