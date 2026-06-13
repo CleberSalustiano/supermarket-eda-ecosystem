@@ -34,6 +34,9 @@ export class InventoryItemTypeormEntity {
   })
   averageUnitCost!: number | null;
 
+  @Column('timestamptz', { nullable: true })
+  lastLowStockAlertAt!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 

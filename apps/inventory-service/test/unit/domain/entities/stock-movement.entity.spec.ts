@@ -76,4 +76,22 @@ describe('StockMovement', () => {
       reason: 'Supplier invoice received: NF-12345'
     });
   });
+
+  it('records a positive or negative stock movement for a physical inventory adjustment', () => {
+    const movement = StockMovement.recordPhysicalAdjustment({
+      id: 'e4fd3612-dcce-4a84-aee9-493784d8735b',
+      tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+      productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+      quantityDelta: -4,
+      referenceId: '1b9ef557-bc03-4b8d-a5be-3499f5e5c73c',
+      referenceEventId: '1b9ef557-bc03-4b8d-a5be-3499f5e5c73c',
+      occurredAt: new Date('2026-06-13T09:00:00.000Z')
+    });
+
+    expect(movement.toPrimitives()).toMatchObject({
+      movementType: 'PHYSICAL_ADJUSTMENT',
+      quantityDelta: -4,
+      reason: 'Physical inventory adjustment'
+    });
+  });
 });

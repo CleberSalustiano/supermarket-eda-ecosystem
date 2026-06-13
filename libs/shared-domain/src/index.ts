@@ -8,6 +8,7 @@ export * from './events/employee-registered.event';
 export * from './events/event-envelope';
 export * from './events/inventory-loss-registered.event';
 export * from './events/kafka-topics';
+export * from './events/low-stock-alert.event';
 export * from './events/new-product-registered.event';
 export * from './events/product-received.event';
 export * from './events/product-price-updated.event';
