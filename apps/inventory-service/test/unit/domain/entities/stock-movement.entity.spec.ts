@@ -57,4 +57,23 @@ describe('StockMovement', () => {
       reason: 'Inventory loss registered: DAMAGED'
     });
   });
+
+  it('records a positive stock movement for supplier invoice receipt', () => {
+    const movement = StockMovement.recordReceipt({
+      id: 'd890a51e-9880-447a-bd5a-6e1ae8c16ce6',
+      tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+      productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+      quantity: 5,
+      referenceId: 'fced6817-46dd-4fe0-abf8-85431a51646d',
+      referenceEventId: '165196eb-f1ff-48df-8b25-17f126a86af3',
+      supplierReference: 'nf-12345',
+      occurredAt: new Date('2026-06-12T09:00:00.000Z')
+    });
+
+    expect(movement.toPrimitives()).toMatchObject({
+      movementType: 'RECEIPT',
+      quantityDelta: 5,
+      reason: 'Supplier invoice received: NF-12345'
+    });
+  });
 });

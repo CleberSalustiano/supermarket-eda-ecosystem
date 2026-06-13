@@ -9,6 +9,7 @@ export * from './events/event-envelope';
 export * from './events/inventory-loss-registered.event';
 export * from './events/kafka-topics';
 export * from './events/new-product-registered.event';
+export * from './events/product-received.event';
 export * from './events/product-price-updated.event';
 export * from './events/register-closed.event';
 export * from './events/sale-canceled.event';

@@ -1,6 +1,6 @@
 import { DomainValidationError, InventoryLossReason } from '@supermarket/shared-domain';
 
-export type StockMovementType = 'SALE_ISSUE' | 'SALE_REVERSION' | 'LOSS';
+export type StockMovementType = 'SALE_ISSUE' | 'SALE_REVERSION' | 'LOSS' | 'RECEIPT';
 
 export interface StockMovementPrimitives {
   id: string;
@@ -45,6 +45,18 @@ interface RecordLossInput {
   referenceId: string;
   referenceEventId: string;
   reasonCode: InventoryLossReason;
+  occurredAt: Date;
+  createdAt?: Date;
+}
+
+interface RecordReceiptInput {
+  id: string;
+  tenantId: string;
+  productId: string;
+  quantity: number;
+  referenceId: string;
+  referenceEventId: string;
+  supplierReference: string;
   occurredAt: Date;
   createdAt?: Date;
 }
@@ -127,11 +139,29 @@ export class StockMovement {
     );
   }
 
+  static recordReceipt(input: RecordReceiptInput): StockMovement {
+    const quantity = normalizePositiveInteger(input.quantity, 'Received quantity');
+
+    return new StockMovement(
+      normalizeIdentifier(input.id, 'Stock movement id'),
+      normalizeIdentifier(input.tenantId, 'Tenant id'),
+      normalizeIdentifier(input.productId, 'Product id'),
+      'RECEIPT',
+      quantity,
+      normalizeIdentifier(input.referenceId, 'Reference id'),
+      normalizeIdentifier(input.referenceEventId, 'Reference event id'),
+      `Supplier invoice received: ${normalizeRequiredString(input.supplierReference, 'Supplier reference').toUpperCase()}`,
+      ensureDate(input.occurredAt, 'Occurred at'),
+      ensureDate(input.createdAt ?? input.occurredAt, 'Created at')
+    );
+  }
+
   static rehydrate(input: RehydrateStockMovementInput): StockMovement {
     if (
       input.movementType !== 'SALE_ISSUE' &&
       input.movementType !== 'SALE_REVERSION' &&
-      input.movementType !== 'LOSS'
+      input.movementType !== 'LOSS' &&
+      input.movementType !== 'RECEIPT'
     ) {
       throw new DomainValidationError(`Stock movement type ${input.movementType} is invalid`);
     }
@@ -152,6 +182,10 @@ export class StockMovement {
 
     if (input.movementType === 'LOSS' && input.quantityDelta >= 0) {
       throw new DomainValidationError('Inventory loss stock movement must have a negative quantity delta');
+    }
+
+    if (input.movementType === 'RECEIPT' && input.quantityDelta <= 0) {
+      throw new DomainValidationError('Receipt stock movement must have a positive quantity delta');
     }
 
     return new StockMovement(
