@@ -8,6 +8,7 @@ export interface InventoryItemPrimitives {
   unitOfMeasure: string;
   onHandQuantity: number;
   minimumThreshold: number;
+  averageUnitCost: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +21,7 @@ interface InitializeInventoryItemInput {
   unitOfMeasure: string;
   onHandQuantity?: number;
   minimumThreshold?: number;
+  averageUnitCost?: number | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -32,6 +34,7 @@ interface RehydrateInventoryItemInput {
   unitOfMeasure: string;
   onHandQuantity: number;
   minimumThreshold: number;
+  averageUnitCost: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,6 +63,15 @@ interface RegisterLossInput {
   updatedAt?: Date;
 }
 
+interface ReceiveStockInput {
+  barcode: string;
+  name: string;
+  unitOfMeasure: string;
+  quantity: number;
+  unitCost: number;
+  updatedAt?: Date;
+}
+
 export class InventoryItem {
   private constructor(
     private readonly productId: string,
@@ -69,6 +81,7 @@ export class InventoryItem {
     private unitOfMeasure: string,
     private onHandQuantity: number,
     private minimumThreshold: number,
+    private averageUnitCost: number | null,
     private readonly createdAt: Date,
     private updatedAt: Date
   ) {}
@@ -84,6 +97,7 @@ export class InventoryItem {
       normalizeUnitOfMeasure(input.unitOfMeasure),
       normalizeWholeNumber(input.onHandQuantity ?? 0, 'On-hand quantity'),
       normalizeWholeNumber(input.minimumThreshold ?? 0, 'Minimum threshold'),
+      normalizeOptionalMoney(input.averageUnitCost),
       ensureDate(input.createdAt ?? now, 'Created at'),
       ensureDate(input.updatedAt ?? now, 'Updated at')
     );
@@ -98,9 +112,30 @@ export class InventoryItem {
       normalizeUnitOfMeasure(input.unitOfMeasure),
       normalizeInteger(input.onHandQuantity, 'On-hand quantity'),
       normalizeWholeNumber(input.minimumThreshold, 'Minimum threshold'),
+      normalizeOptionalMoney(input.averageUnitCost),
       ensureDate(input.createdAt, 'Created at'),
       ensureDate(input.updatedAt, 'Updated at')
     );
+  }
+
+  receiveStock(input: ReceiveStockInput): void {
+    const quantity = normalizePositiveInteger(input.quantity, 'Received quantity');
+    const unitCost = normalizeMoney(input.unitCost, 'Received unit cost');
+    const nextOnHandQuantity = this.onHandQuantity + quantity;
+
+    this.synchronizeProductData(input.barcode, input.name, input.unitOfMeasure);
+
+    if (this.averageUnitCost === null || this.onHandQuantity <= 0) {
+      this.averageUnitCost = unitCost;
+    } else {
+      const weightedAverageCost =
+        (this.onHandQuantity * this.averageUnitCost + quantity * unitCost) / nextOnHandQuantity;
+
+      this.averageUnitCost = Number.parseFloat(weightedAverageCost.toFixed(2));
+    }
+
+    this.onHandQuantity = nextOnHandQuantity;
+    this.updatedAt = ensureDate(input.updatedAt ?? new Date(), 'Updated at');
   }
 
   issueSale(input: IssueSaleInput): void {
@@ -136,6 +171,7 @@ export class InventoryItem {
       unitOfMeasure: this.unitOfMeasure,
       onHandQuantity: this.onHandQuantity,
       minimumThreshold: this.minimumThreshold,
+      averageUnitCost: this.averageUnitCost,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
@@ -192,6 +228,22 @@ function normalizePositiveInteger(value: number, label: string): number {
   }
 
   return value;
+}
+
+function normalizeOptionalMoney(value: number | null | undefined): number | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return normalizeMoney(value, 'Average unit cost');
+}
+
+function normalizeMoney(value: number, label: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new DomainValidationError(`${label} must be greater than zero`);
+  }
+
+  return Number.parseFloat(value.toFixed(2));
 }
 
 function ensureDate(value: Date, label: string): Date {

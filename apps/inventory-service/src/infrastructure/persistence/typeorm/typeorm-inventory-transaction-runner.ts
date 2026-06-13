@@ -11,6 +11,7 @@ import { TypeormInventoryItemRepository } from './repositories/typeorm-inventory
 import { TypeormOutboxEventRepository } from './repositories/typeorm-outbox-event.repository';
 import { TypeormProcessedEventRepository } from './repositories/typeorm-processed-event.repository';
 import { TypeormStockMovementRepository } from './repositories/typeorm-stock-movement.repository';
+import { TypeormSupplierInvoiceRepository } from './repositories/typeorm-supplier-invoice.repository';
 
 @Injectable()
 export class TypeormInventoryTransactionRunner implements InventoryTransactionRunnerPort {
@@ -23,7 +24,8 @@ export class TypeormInventoryTransactionRunner implements InventoryTransactionRu
         inventoryItemRepository: new TypeormInventoryItemRepository(manager),
         outboxEventRepository: new TypeormOutboxEventRepository(manager),
         processedEventRepository: new TypeormProcessedEventRepository(manager),
-        stockMovementRepository: new TypeormStockMovementRepository(manager)
+        stockMovementRepository: new TypeormStockMovementRepository(manager),
+        supplierInvoiceRepository: new TypeormSupplierInvoiceRepository(manager)
       })
     );
   }

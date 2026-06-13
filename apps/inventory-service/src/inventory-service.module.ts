@@ -10,6 +10,7 @@ import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port'
 import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event-repository.port';
 import { ProcessSaleIssueUseCase } from './application/use-cases/process-sale-issue.use-case';
 import { RegisterInventoryLossUseCase } from './application/use-cases/register-inventory-loss.use-case';
+import { RegisterSupplierInvoiceUseCase } from './application/use-cases/register-supplier-invoice.use-case';
 import { RevertSaleIssueUseCase } from './application/use-cases/revert-sale-issue.use-case';
 import { INVENTORY_LOSS_REPOSITORY } from './domain/repositories/inventory-loss.repository';
 import { INVENTORY_ITEM_REPOSITORY } from './domain/repositories/inventory-item.repository';
@@ -17,6 +18,7 @@ import { PROCESSED_EVENT_REPOSITORY } from './domain/repositories/processed-even
 import { STOCK_MOVEMENT_REPOSITORY } from './domain/repositories/stock-movement.repository';
 import { HealthController } from './interfaces/http/health.controller';
 import { InventoryLossesController } from './interfaces/http/inventory-losses.controller';
+import { SupplierInvoicesController } from './interfaces/http/supplier-invoices.controller';
 import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
 import { inventoryServiceEnvironment } from './infrastructure/config/inventory-service.environment';
@@ -33,11 +35,12 @@ import { TypeormStockMovementRepository } from './infrastructure/persistence/typ
 
 @Module({
   imports: [TypeOrmModule.forRoot(inventoryServiceDataSourceOptions)],
-  controllers: [HealthController, InventoryLossesController],
+  controllers: [HealthController, InventoryLossesController, SupplierInvoicesController],
   providers: [
     AppLoggerService,
     ProcessSaleIssueUseCase,
     RegisterInventoryLossUseCase,
+    RegisterSupplierInvoiceUseCase,
     RevertSaleIssueUseCase,
     KafkaInventoryEventPublisherService,
     SaleCanceledConsumer,

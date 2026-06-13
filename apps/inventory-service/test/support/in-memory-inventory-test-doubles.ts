@@ -2,11 +2,13 @@ import type {
   EventEnvelope,
   EventPayload,
   InventoryLossRegisteredEventPayload,
+  ProductReceivedEventPayload,
   SaleCanceledEventPayload,
   SaleCompletedEventPayload
 } from '@supermarket/shared-domain';
 import {
   createInventoryLossRegisteredEvent,
+  createProductReceivedEvent,
   createSaleCanceledEvent,
   createSaleCompletedEvent,
   InventoryLossReason,
@@ -28,10 +30,12 @@ import { InventoryLoss } from '#/domain/entities/inventory-loss.entity';
 import { InventoryItem } from '#/domain/entities/inventory-item.entity';
 import { ProcessedEvent } from '#/domain/entities/processed-event.entity';
 import { StockMovement } from '#/domain/entities/stock-movement.entity';
+import { SupplierInvoice } from '#/domain/entities/supplier-invoice.entity';
 import type { InventoryLossRepositoryPort } from '#/domain/repositories/inventory-loss.repository';
 import type { InventoryItemRepositoryPort } from '#/domain/repositories/inventory-item.repository';
 import type { ProcessedEventRepositoryPort } from '#/domain/repositories/processed-event.repository';
 import type { StockMovementRepositoryPort } from '#/domain/repositories/stock-movement.repository';
+import type { SupplierInvoiceRepositoryPort } from '#/domain/repositories/supplier-invoice.repository';
 
 export class InMemoryInventoryItemRepository implements InventoryItemRepositoryPort {
   private readonly items = new Map<string, InventoryItem>();
@@ -61,6 +65,33 @@ export class InMemoryInventoryLossRepository implements InventoryLossRepositoryP
   }
 
   all(): InventoryLoss[] {
+    return [...this.items.values()];
+  }
+}
+
+export class InMemorySupplierInvoiceRepository implements SupplierInvoiceRepositoryPort {
+  private readonly items = new Map<string, SupplierInvoice>();
+
+  async findBySupplierReference(
+    tenantId: string,
+    supplierReference: string
+  ): Promise<SupplierInvoice | null> {
+    for (const invoice of this.items.values()) {
+      if (invoice.referencesSupplierInvoice(tenantId, supplierReference)) {
+        return invoice;
+      }
+    }
+
+    return null;
+  }
+
+  async save(invoice: SupplierInvoice): Promise<void> {
+    const invoiceState = invoice.toPrimitives();
+
+    this.items.set(invoiceState.id, invoice);
+  }
+
+  all(): SupplierInvoice[] {
     return [...this.items.values()];
   }
 }
@@ -173,6 +204,7 @@ interface InMemoryInventoryTransactionRunnerOptions {
   outboxEventRepository?: InMemoryOutboxEventRepository;
   processedEventRepository?: InMemoryProcessedEventRepository;
   stockMovementRepository?: InMemoryStockMovementRepository;
+  supplierInvoiceRepository?: InMemorySupplierInvoiceRepository;
 }
 
 export class InMemoryInventoryTransactionRunner implements InventoryTransactionRunnerPort {
@@ -187,7 +219,9 @@ export class InMemoryInventoryTransactionRunner implements InventoryTransactionR
       processedEventRepository:
         options.processedEventRepository ?? new InMemoryProcessedEventRepository(),
       stockMovementRepository:
-        options.stockMovementRepository ?? new InMemoryStockMovementRepository()
+        options.stockMovementRepository ?? new InMemoryStockMovementRepository(),
+      supplierInvoiceRepository:
+        options.supplierInvoiceRepository ?? new InMemorySupplierInvoiceRepository()
     };
   }
 
@@ -276,6 +310,33 @@ export function createInventoryLossRegisteredEventFixture(
     notes: 'Bottle leaked',
     onHandQuantityAfterLoss: -2,
     recordedAt: '2026-06-11T10:00:00.000Z',
+    ...overrides
+  });
+}
+
+export function createProductReceivedEventFixture(
+  overrides: Partial<ProductReceivedEventPayload> = {}
+): EventEnvelope<ProductReceivedEventPayload> {
+  return createProductReceivedEvent({
+    invoiceId: '78af2ea8-c777-43b0-a1c3-c04dfb08a2cc',
+    tenantId: '0ace7a51-b8bf-4050-86db-006b0d0f5af7',
+    supplierReference: 'NF-12345',
+    receivedAt: '2026-06-12T09:00:00.000Z',
+    totalItemsQuantity: 5,
+    totalCost: 38.5,
+    items: [
+      {
+        productId: '9580902a-ded1-4e9f-9b45-ab7cb8d8340d',
+        barcode: '7891000000200',
+        name: 'Orange Juice',
+        unitOfMeasure: 'UNIT',
+        quantity: 5,
+        unitCost: 7.7,
+        lineCost: 38.5,
+        onHandQuantityAfterReceipt: 5,
+        averageUnitCostAfterReceipt: 7.7
+      }
+    ],
     ...overrides
   });
 }

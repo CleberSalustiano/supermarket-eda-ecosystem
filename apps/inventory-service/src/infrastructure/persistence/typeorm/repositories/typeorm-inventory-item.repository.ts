@@ -37,6 +37,7 @@ export class TypeormInventoryItemRepository implements InventoryItemRepositoryPo
       unitOfMeasure: itemState.unitOfMeasure,
       onHandQuantity: itemState.onHandQuantity,
       minimumThreshold: itemState.minimumThreshold,
+      averageUnitCost: itemState.averageUnitCost,
       createdAt: new Date(itemState.createdAt),
       updatedAt: new Date(itemState.updatedAt)
     });
@@ -52,6 +53,7 @@ function toDomain(entity: InventoryItemTypeormEntity): InventoryItem {
     unitOfMeasure: entity.unitOfMeasure,
     onHandQuantity: entity.onHandQuantity,
     minimumThreshold: entity.minimumThreshold,
+    averageUnitCost: entity.averageUnitCost,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt
   });
