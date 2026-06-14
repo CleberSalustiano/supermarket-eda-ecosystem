@@ -5,6 +5,10 @@ export interface ServiceEnvironment {
   serviceName: string;
   appVersion: string;
   servicePort: number;
+  http: {
+    corsEnabled: boolean;
+    corsAllowedOrigins: string[];
+  };
   database: {
     host: string;
     port: number;
@@ -24,6 +28,8 @@ export interface ServiceEnvironmentDefaults {
   serviceName: string;
   appVersion: string;
   servicePort: number;
+  httpCorsAllowedOrigins?: string[];
+  httpCorsEnabled?: boolean;
   databaseName: string;
   databasePort: number;
   databaseHost?: string;
@@ -37,15 +43,48 @@ export interface ServiceEnvironmentDefaults {
 
 export const SERVICE_ENVIRONMENT = Symbol('SERVICE_ENVIRONMENT');
 
+const defaultLocalFrontendCorsOrigins = [
+  'http://localhost:4100',
+  'http://127.0.0.1:4100',
+  'http://localhost:4101',
+  'http://127.0.0.1:4101',
+  'http://localhost:4102',
+  'http://127.0.0.1:4102',
+  'http://localhost:4200',
+  'http://127.0.0.1:4200',
+  'http://localhost:4201',
+  'http://127.0.0.1:4201',
+  'http://localhost:4202',
+  'http://127.0.0.1:4202'
+] as const;
+
 export function createServiceEnvironment(
   defaults: ServiceEnvironmentDefaults,
   source: NodeJS.ProcessEnv = process.env
 ): ServiceEnvironment {
+  const nodeEnvironment = parseNodeEnvironment(source['NODE_ENV']);
+  const fallbackCorsAllowedOrigins =
+    defaults.httpCorsAllowedOrigins ??
+    (nodeEnvironment === 'development' ? [...defaultLocalFrontendCorsOrigins] : []);
+  const corsAllowedOrigins = parseStringList(
+    source['HTTP_CORS_ORIGINS'],
+    fallbackCorsAllowedOrigins,
+    'HTTP_CORS_ORIGINS'
+  );
+
   return {
-    nodeEnvironment: parseNodeEnvironment(source['NODE_ENV']),
+    nodeEnvironment,
     serviceName: parseString(source['SERVICE_NAME'], defaults.serviceName, 'SERVICE_NAME'),
     appVersion: parseString(source['APP_VERSION'], defaults.appVersion, 'APP_VERSION'),
     servicePort: parsePositiveInteger(source['PORT'], defaults.servicePort, 'PORT'),
+    http: {
+      corsEnabled: parseBoolean(
+        source['HTTP_CORS_ENABLED'],
+        defaults.httpCorsEnabled ?? corsAllowedOrigins.length > 0,
+        'HTTP_CORS_ENABLED'
+      ),
+      corsAllowedOrigins
+    },
     database: {
       host: parseString(
         source['DATABASE_HOST'],
@@ -153,6 +192,27 @@ function parseBrokers(rawValue: string | undefined, fallbackValue: string[]): st
 
   if (parsedValue.length === 0) {
     throw new Error('KAFKA_BROKERS must contain at least one broker');
+  }
+
+  return parsedValue;
+}
+
+function parseStringList(
+  rawValue: string | undefined,
+  fallbackValue: string[],
+  label: string
+): string[] {
+  if (rawValue === undefined || rawValue.trim() === '') {
+    return [...fallbackValue];
+  }
+
+  const parsedValue = rawValue
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  if (parsedValue.length === 0) {
+    throw new Error(`${label} must contain at least one value when provided`);
   }
 
   return parsedValue;

@@ -36,7 +36,32 @@ export async function bootstrapHttpApplication(
   app.useGlobalFilters(new GlobalHttpExceptionFilter(logger));
   app.enableShutdownHooks();
 
+  if (options.environment.http.corsEnabled) {
+    app.enableCors({
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      origin: createCorsOriginResolver(options.environment.http.corsAllowedOrigins)
+    });
+  }
+
   await app.listen(options.environment.servicePort);
 
   logger.log(`HTTP server listening on port ${options.environment.servicePort}`);
+}
+
+function createCorsOriginResolver(
+  allowedOrigins: string[]
+): true | ((requestOrigin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => void) {
+  if (allowedOrigins.includes('*')) {
+    return true;
+  }
+
+  return (requestOrigin, callback) => {
+    if (requestOrigin === undefined || allowedOrigins.includes(requestOrigin)) {
+      callback(null, true);
+
+      return;
+    }
+
+    callback(null, false);
+  };
 }
