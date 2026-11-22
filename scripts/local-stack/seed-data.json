@@ -1,0 +1,23 @@
+{
+  "_comment": "Products are registered with registrationPrice and then updated to price on purpose: checkout's local catalog is fed only by management.product-price.updated (Decision 3, option A) and Product.updatePrice rejects an unchanged price.",
+  "tenantId": "8f6d7df2-0d8a-4c81-9ad3-6f9c3c5198b1",
+  "employees": [
+    { "employeeCode": "CASHIER-01", "fullName": "Ana Souza", "role": "CASHIER", "pin": "4821" },
+    { "employeeCode": "MANAGER-01", "fullName": "Bruno Lima", "role": "MANAGER", "pin": "7350" },
+    { "employeeCode": "ADMIN-01", "fullName": "Carla Mendes", "role": "ADMIN", "pin": "9164" }
+  ],
+  "products": [
+    { "barcode": "7891234567890", "name": "Arabica coffee beans 1kg", "unitOfMeasure": "UN", "registrationPrice": 23.9, "price": 22.9, "quantity": 40, "unitCost": 14.5 },
+    { "barcode": "7891000100013", "name": "Whole milk 1L", "unitOfMeasure": "UN", "registrationPrice": 5.49, "price": 4.99, "quantity": 120, "unitCost": 3.1 },
+    { "barcode": "7891000100020", "name": "White rice 5kg", "unitOfMeasure": "UN", "registrationPrice": 28.9, "price": 27.5, "quantity": 60, "unitCost": 18.2 },
+    { "barcode": "7891000100037", "name": "Banana prata", "unitOfMeasure": "KG", "registrationPrice": 6.99, "price": 6.49, "quantity": 80, "unitCost": 3.4 },
+    { "barcode": "7891000100044", "name": "Extra virgin olive oil 500ml", "unitOfMeasure": "UN", "registrationPrice": 36.9, "price": 34.9, "quantity": 30, "unitCost": 21.0 },
+    { "barcode": "7891000100051", "name": "Sliced bread 500g", "unitOfMeasure": "UN", "registrationPrice": 8.49, "price": 7.99, "quantity": 5, "unitCost": 4.2 }
+  ],
+  "supplierInvoice": { "supplierReference": "SEED-INV-0001" },
+  "checkoutSession": {
+    "registerId": "register-01",
+    "openingFloatAmount": "150.00",
+    "managerApprovalCode": "MANAGER-01"
+  }
+}
