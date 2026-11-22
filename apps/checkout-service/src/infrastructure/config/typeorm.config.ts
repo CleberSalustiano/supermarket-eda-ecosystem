@@ -1,8 +1,7 @@
-import { join } from 'path';
-
 import { DataSource } from 'typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
+import { checkoutServiceMigrations } from '../../../migrations';
 import { checkoutTypeormEntities } from '../persistence/typeorm/entities/checkout-typeorm-entities';
 import { checkoutServiceEnvironment } from './checkout-service.environment';
 
@@ -21,7 +20,8 @@ export function createCheckoutDataSourceOptions(
     logging:
       checkoutServiceEnvironment.nodeEnvironment === 'development' ? ['error', 'warn'] : ['error'],
     entities: [...checkoutTypeormEntities],
-    migrations: [join(__dirname, '../../../migrations/*.{js,ts}')],
+    migrations: [...checkoutServiceMigrations],
+    migrationsRun: checkoutServiceEnvironment.database.migrationsRun,
     migrationsTableName: 'checkout_service_migrations',
     ...overrides
   } as DataSourceOptions;

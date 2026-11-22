@@ -19,14 +19,15 @@ export class DailyFinancialConsolidationTypeormEntity {
   @Column('numeric', {
     precision: 14,
     scale: 2,
+    default: 0,
     transformer: decimalColumnTransformer
   })
   grossSalesTotal!: number;
 
-  @Column('integer')
+  @Column('integer', { default: 0 })
   salesCount!: number;
 
-  @Column('integer')
+  @Column('integer', { default: 0 })
   soldItemsQuantity!: number;
 
   @Column('timestamptz')

@@ -54,4 +54,22 @@ describe('createServiceEnvironment', () => {
       })
     ).toThrow('PORT must be a positive integer');
   });
+
+  it('keeps migrations disabled at boot by default', () => {
+    expect(createServiceEnvironment(defaultEnvironment, {}).database.migrationsRun).toBe(false);
+  });
+
+  it.each(['true', '1'])('enables migrations at boot when DATABASE_MIGRATIONS_RUN is %s', (value) => {
+    const environment = createServiceEnvironment(defaultEnvironment, {
+      DATABASE_MIGRATIONS_RUN: value
+    });
+
+    expect(environment.database.migrationsRun).toBe(true);
+  });
+
+  it('throws when DATABASE_MIGRATIONS_RUN is invalid', () => {
+    expect(() =>
+      createServiceEnvironment(defaultEnvironment, { DATABASE_MIGRATIONS_RUN: 'maybe' })
+    ).toThrow('DATABASE_MIGRATIONS_RUN must be true, false, 1, or 0');
+  });
 });

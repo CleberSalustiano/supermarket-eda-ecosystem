@@ -2,16 +2,22 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  ForeignKey,
   Index,
   OneToMany,
   PrimaryColumn,
   UpdateDateColumn
 } from 'typeorm';
 
+import { PosSessionTypeormEntity } from './pos-session.typeorm-entity';
 import { SaleItemTypeormEntity } from './sale-item.typeorm-entity';
 import { decimalColumnTransformer } from './decimal-column.transformer';
 
 @Entity('sales')
+@ForeignKey(() => PosSessionTypeormEntity, ['sessionId'], ['id'], {
+  name: 'FK_sales_session_id',
+  onDelete: 'RESTRICT'
+})
 @Index('idx_sales_tenant_session', ['tenantId', 'sessionId'])
 export class SaleTypeormEntity {
   @PrimaryColumn('uuid')

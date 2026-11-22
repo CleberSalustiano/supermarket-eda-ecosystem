@@ -16,6 +16,7 @@ export interface ServiceEnvironment {
     user: string;
     password: string;
     ssl: boolean;
+    migrationsRun: boolean;
   };
   kafka: {
     brokers: string[];
@@ -36,6 +37,7 @@ export interface ServiceEnvironmentDefaults {
   databaseUser?: string;
   databasePassword?: string;
   databaseSsl?: boolean;
+  databaseMigrationsRun?: boolean;
   kafkaBrokers: string[];
   kafkaClientId: string;
   kafkaConsumerGroupId: string;
@@ -107,7 +109,12 @@ export function createServiceEnvironment(
         defaults.databasePassword ?? 'postgres',
         'DATABASE_PASSWORD'
       ),
-      ssl: parseBoolean(source['DATABASE_SSL'], defaults.databaseSsl ?? false, 'DATABASE_SSL')
+      ssl: parseBoolean(source['DATABASE_SSL'], defaults.databaseSsl ?? false, 'DATABASE_SSL'),
+      migrationsRun: parseBoolean(
+        source['DATABASE_MIGRATIONS_RUN'],
+        defaults.databaseMigrationsRun ?? false,
+        'DATABASE_MIGRATIONS_RUN'
+      )
     },
     kafka: {
       brokers: parseBrokers(source['KAFKA_BROKERS'], defaults.kafkaBrokers),

@@ -1,8 +1,7 @@
-import { join } from 'path';
-
 import { DataSource } from 'typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
+import { inventoryServiceMigrations } from '../../../migrations';
 import { inventoryTypeormEntities } from '../persistence/typeorm/entities/inventory-typeorm-entities';
 import { inventoryServiceEnvironment } from './inventory-service.environment';
 
@@ -21,7 +20,8 @@ export function createInventoryDataSourceOptions(
     logging:
       inventoryServiceEnvironment.nodeEnvironment === 'development' ? ['error', 'warn'] : ['error'],
     entities: [...inventoryTypeormEntities],
-    migrations: [join(__dirname, '../../../migrations/*.{js,ts}')],
+    migrations: [...inventoryServiceMigrations],
+    migrationsRun: inventoryServiceEnvironment.database.migrationsRun,
     migrationsTableName: 'inventory_service_migrations',
     ...overrides
   } as DataSourceOptions;

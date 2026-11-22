@@ -1,6 +1,14 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryColumn,
+  UpdateDateColumn
+} from 'typeorm';
 
 @Entity('outbox_events')
+@Index('idx_outbox_events_published_at', ['publishedAt'])
 export class OutboxEventTypeormEntity {
   @PrimaryColumn('uuid')
   id!: string;
