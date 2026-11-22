@@ -4,6 +4,10 @@ import { decimalColumnTransformer } from './decimal-column.transformer';
 
 @Entity('pos_sessions')
 @Index('idx_pos_sessions_tenant_register', ['tenantId', 'registerId'])
+@Index('uq_pos_sessions_open_register', ['tenantId', 'registerId'], {
+  unique: true,
+  where: `"status" = 'OPEN'`
+})
 export class PosSessionTypeormEntity {
   @PrimaryColumn('uuid')
   id!: string;

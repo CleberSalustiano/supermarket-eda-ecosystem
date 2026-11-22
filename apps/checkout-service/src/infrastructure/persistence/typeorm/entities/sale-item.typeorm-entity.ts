@@ -41,6 +41,10 @@ export class SaleItemTypeormEntity {
   @ManyToOne(() => SaleTypeormEntity, (sale) => sale.items, {
     onDelete: 'CASCADE'
   })
-  @JoinColumn({ name: 'saleId', referencedColumnName: 'id' })
+  @JoinColumn({
+    name: 'saleId',
+    referencedColumnName: 'id',
+    foreignKeyConstraintName: 'FK_sale_items_sale_id'
+  })
   sale!: SaleTypeormEntity;
 }

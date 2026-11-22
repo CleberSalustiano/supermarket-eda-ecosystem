@@ -114,8 +114,9 @@ describe('inventory-service supplier invoice flow', () => {
 
     await dataSource.getRepository(OutboxEventTypeormEntity).clear();
     await dataSource.getRepository(StockMovementTypeormEntity).clear();
-    await dataSource.getRepository(SupplierInvoiceLineTypeormEntity).clear();
-    await dataSource.getRepository(SupplierInvoiceTypeormEntity).clear();
+    // TRUNCATE is rejected for tables referenced by a foreign key, so delete child then parent rows.
+    await dataSource.getRepository(SupplierInvoiceLineTypeormEntity).createQueryBuilder().delete().execute();
+    await dataSource.getRepository(SupplierInvoiceTypeormEntity).createQueryBuilder().delete().execute();
     await dataSource.getRepository(InventoryItemTypeormEntity).clear();
   });
 

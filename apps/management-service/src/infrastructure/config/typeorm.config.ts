@@ -1,8 +1,7 @@
-import { join } from 'path';
-
 import { DataSource } from 'typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
+import { managementServiceMigrations } from '../../../migrations';
 import { managementTypeormEntities } from '../persistence/typeorm/entities/management-typeorm-entities';
 import { managementServiceEnvironment } from './management-service.environment';
 
@@ -21,7 +20,8 @@ export function createManagementDataSourceOptions(
     logging:
       managementServiceEnvironment.nodeEnvironment === 'development' ? ['error', 'warn'] : ['error'],
     entities: [...managementTypeormEntities],
-    migrations: [join(__dirname, '../../../migrations/*.{js,ts}')],
+    migrations: [...managementServiceMigrations],
+    migrationsRun: managementServiceEnvironment.database.migrationsRun,
     migrationsTableName: 'management_service_migrations',
     ...overrides
   } as DataSourceOptions;
