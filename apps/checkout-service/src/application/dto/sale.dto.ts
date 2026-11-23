@@ -3,6 +3,7 @@ import { DomainValidationError } from '@supermarket/shared-domain';
 
 import type { IntegrationEventPublicationStatus } from './integration-event-publication-status';
 import type { Sale, SaleStatus } from '#/domain/entities/sale.entity';
+import type { ManagerApprovalPrimitives } from '#/domain/value-objects/manager-approval';
 
 export interface StartSaleInputDto {
   tenantId: string;
@@ -35,12 +36,24 @@ export interface CompleteSaleInputDto {
   saleId: string;
 }
 
+export interface CancelSaleManagerApprovalInputDto {
+  employeeCode: string;
+  /** Sent only to management-service for verification; never stored or logged. */
+  pin: string;
+}
+
 export interface CancelSaleInputDto {
   tenantId: string;
   saleId: string;
   reason: string;
-  managerApprovalCode?: string;
+  managerApproval?: CancelSaleManagerApprovalInputDto | null;
 }
+
+export interface CancelSaleContextDto {
+  correlationId?: string;
+}
+
+export type SaleCancellationApproverOutputDto = ManagerApprovalPrimitives;
 
 export interface SaleItemOutputDto {
   productId: string;
@@ -64,6 +77,7 @@ export interface SaleOutputDto {
   completedAt: string | null;
   canceledAt: string | null;
   cancellationReason: string | null;
+  cancellationApprovedBy: SaleCancellationApproverOutputDto | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -110,6 +124,7 @@ export function toSaleOutputDto(sale: Sale): SaleOutputDto {
     completedAt: saleState.completedAt,
     canceledAt: saleState.canceledAt,
     cancellationReason: saleState.cancellationReason,
+    cancellationApprovedBy: saleState.cancellationApproval,
     totalItemsQuantity: saleState.totalItemsQuantity,
     subtotal: saleState.subtotal,
     total: saleState.total,

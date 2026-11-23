@@ -1,4 +1,15 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req
+} from '@nestjs/common';
+
+import type { RequestWithCorrelationId } from '@supermarket/shared-infra';
 
 import type {
   CancelSaleOutputDto,
@@ -94,13 +105,22 @@ export class SalesController {
   @HttpCode(HttpStatus.OK)
   async cancelSale(
     @Param('saleId', new ParseUUIDPipe({ version: '4' })) saleId: string,
-    @Body() request: CancelSaleRequestDto
+    @Body() request: CancelSaleRequestDto,
+    @Req() httpRequest: RequestWithCorrelationId
   ): Promise<CancelSaleOutputDto> {
-    return this.cancelSaleUseCase.execute({
-      tenantId: request.tenantId,
-      saleId,
-      reason: request.reason,
-      managerApprovalCode: request.managerApprovalCode
-    });
+    return this.cancelSaleUseCase.execute(
+      {
+        tenantId: request.tenantId,
+        saleId,
+        reason: request.reason,
+        managerApproval: request.managerApproval
+          ? {
+              employeeCode: request.managerApproval.employeeCode,
+              pin: request.managerApproval.pin
+            }
+          : undefined
+      },
+      { correlationId: httpRequest.correlationId }
+    );
   }
 }

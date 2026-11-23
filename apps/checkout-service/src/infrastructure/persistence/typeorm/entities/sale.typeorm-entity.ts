@@ -63,6 +63,15 @@ export class SaleTypeormEntity {
   @Column('varchar', { length: 255, nullable: true })
   cancellationReason!: string | null;
 
+  @Column('uuid', { nullable: true })
+  cancellationApprovedByEmployeeId!: string | null;
+
+  @Column('varchar', { length: 32, nullable: true })
+  cancellationApprovedByEmployeeCode!: string | null;
+
+  @Column('varchar', { length: 120, nullable: true })
+  cancellationApprovedByFullName!: string | null;
+
   @Column('integer')
   totalItemsQuantity!: number;
 

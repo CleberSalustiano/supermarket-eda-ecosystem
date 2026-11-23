@@ -56,6 +56,41 @@ describe('checkout-service migrations integration', () => {
     expect(executed).toHaveLength(0);
   });
 
+  it('adds the nullable sale cancellation approver columns', async () => {
+    const columns: Array<{
+      column_name: string;
+      data_type: string;
+      character_maximum_length: number | null;
+      is_nullable: string;
+    }> = await dataSource.query(`
+      SELECT column_name, data_type, character_maximum_length, is_nullable
+      FROM information_schema.columns
+      WHERE table_name = 'sales' AND column_name LIKE 'cancellationApprovedBy%'
+      ORDER BY column_name
+    `);
+
+    expect(columns).toEqual([
+      {
+        column_name: 'cancellationApprovedByEmployeeCode',
+        data_type: 'character varying',
+        character_maximum_length: 32,
+        is_nullable: 'YES'
+      },
+      {
+        column_name: 'cancellationApprovedByEmployeeId',
+        data_type: 'uuid',
+        character_maximum_length: null,
+        is_nullable: 'YES'
+      },
+      {
+        column_name: 'cancellationApprovedByFullName',
+        data_type: 'character varying',
+        character_maximum_length: 120,
+        is_nullable: 'YES'
+      }
+    ]);
+  });
+
   it('leaves no schema drift against the entities', async () => {
     const schemaLog = await dataSource.driver.createSchemaBuilder().log();
 

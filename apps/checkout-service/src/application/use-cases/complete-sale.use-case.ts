@@ -28,7 +28,7 @@ export class CompleteSaleUseCase {
     const saleId = normalizeRequiredValue(input.saleId, 'Sale id');
     const integrationEvent = await this.transactionRunner.execute(
       async ({ outboxEventRepository, posSessionRepository, saleRepository }) => {
-        const sale = await saleRepository.findById(tenantId, saleId);
+        const sale = await saleRepository.findByIdForUpdate(tenantId, saleId);
 
         if (!sale) {
           throw new ResourceNotFoundError(`Sale ${saleId} was not found for tenant ${tenantId}`);

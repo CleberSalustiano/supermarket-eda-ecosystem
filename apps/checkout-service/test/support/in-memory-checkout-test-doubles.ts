@@ -1,4 +1,10 @@
-import type { EventEnvelope, EventPayload } from '@supermarket/shared-domain';
+import {
+  DependencyUnavailableError,
+  type EventEnvelope,
+  type EventPayload,
+  type ManagerApprovalVerificationRequest,
+  type ManagerApprovalVerificationResponse
+} from '@supermarket/shared-domain';
 
 import type { IntegrationEventPublicationStatus } from '#/application/dto/integration-event-publication-status';
 import type {
@@ -10,6 +16,11 @@ import type {
   CheckoutTransactionRunnerPort
 } from '#/application/ports/checkout-transaction-runner.port';
 import type { OutboxEventRelayPort } from '#/application/ports/outbox-event-relay.port';
+import type {
+  ManagerApprovalVerificationContext,
+  ManagerApprovalVerifierPort
+} from '#/application/ports/manager-approval-verifier.port';
+import { MANAGER_APPROVAL_UNAVAILABLE_MESSAGE } from '#/application/ports/manager-approval-verifier.port';
 import { PosSession } from '#/domain/entities/pos-session.entity';
 import { ProductCatalogItem } from '#/domain/entities/product-catalog-item.entity';
 import { Sale } from '#/domain/entities/sale.entity';
@@ -85,6 +96,14 @@ export class InMemorySaleRepository implements SaleRepositoryPort {
 
   async findById(tenantId: string, saleId: string): Promise<Sale | null> {
     return this.sales.get(buildKey(tenantId, saleId)) ?? null;
+  }
+
+  readonly lockedReads: string[] = [];
+
+  async findByIdForUpdate(tenantId: string, saleId: string): Promise<Sale | null> {
+    this.lockedReads.push(saleId);
+
+    return this.findById(tenantId, saleId);
   }
 
   async hasNonTerminalBySessionId(tenantId: string, sessionId: string): Promise<boolean> {
@@ -211,6 +230,41 @@ export class FakeOutboxEventRelay implements OutboxEventRelayPort {
     this.dispatchedEventIds.push(eventId);
 
     return this.status;
+  }
+}
+
+export type ManagerApprovalVerificationHandler = (
+  request: ManagerApprovalVerificationRequest,
+  context: ManagerApprovalVerificationContext
+) => Promise<ManagerApprovalVerificationResponse>;
+
+/**
+ * Records every verification call. By default it behaves like an unreachable
+ * management-service, so a test that never expects a call fails loudly.
+ */
+export class FakeManagerApprovalVerifier implements ManagerApprovalVerifierPort {
+  readonly calls: Array<{
+    request: ManagerApprovalVerificationRequest;
+    context: ManagerApprovalVerificationContext;
+  }> = [];
+
+  constructor(
+    private handler: ManagerApprovalVerificationHandler = async () => {
+      throw new DependencyUnavailableError(MANAGER_APPROVAL_UNAVAILABLE_MESSAGE);
+    }
+  ) {}
+
+  respondWith(handler: ManagerApprovalVerificationHandler): void {
+    this.handler = handler;
+  }
+
+  async verify(
+    request: ManagerApprovalVerificationRequest,
+    context: ManagerApprovalVerificationContext
+  ): Promise<ManagerApprovalVerificationResponse> {
+    this.calls.push({ request: { ...request }, context: { ...context } });
+
+    return this.handler(request, context);
   }
 }
 

@@ -15,6 +15,7 @@ import {
 
 import { CHECKOUT_EVENT_PUBLISHER } from '#/application/ports/checkout-event-publisher.port';
 import { CHECKOUT_TRANSACTION_RUNNER } from '#/application/ports/checkout-transaction-runner.port';
+import { MANAGER_APPROVAL_VERIFIER } from '#/application/ports/manager-approval-verifier.port';
 import { OUTBOX_EVENT_RELAY } from '#/application/ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_REPOSITORY } from '#/application/ports/outbox-event-repository.port';
 import { OUTBOX_REPLAY_OPTIONS } from '#/application/ports/outbox-replay.options';
@@ -46,6 +47,7 @@ import { PosSessionsController } from '#/interfaces/http/pos-sessions.controller
 import { SalesController } from '#/interfaces/http/sales.controller';
 import { ProductPriceUpdatedConsumer } from '#/interfaces/messaging/product-price-updated.consumer';
 import { createCheckoutPgMemoryDataSource } from '../support/create-checkout-pg-memory-data-source';
+import { FakeManagerApprovalVerifier } from '../support/in-memory-checkout-test-doubles';
 
 class ToggleCheckoutEventPublisher {
   failuresRemaining = 0;
@@ -134,6 +136,10 @@ describe('checkout-service outbox replay flow', () => {
         {
           provide: CHECKOUT_TRANSACTION_RUNNER,
           useExisting: TypeormCheckoutTransactionRunner
+        },
+        {
+          provide: MANAGER_APPROVAL_VERIFIER,
+          useValue: new FakeManagerApprovalVerifier()
         },
         {
           provide: CHECKOUT_EVENT_PUBLISHER,
