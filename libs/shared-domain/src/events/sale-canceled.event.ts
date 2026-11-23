@@ -32,6 +32,16 @@ export interface SaleCanceledEventPayload extends TenantScoped {
   cancellationReason: string;
   canceledAt: string;
   items: SaleCanceledEventItemPayload[];
+  /**
+   * Set only for post-payment cancellations approved by a manager; absent on
+   * events produced before this field existed.
+   */
+  approvedByEmployeeId?: string | null;
+  /**
+   * Set only for post-payment cancellations approved by a manager; absent on
+   * events produced before this field existed.
+   */
+  approvedByEmployeeCode?: string | null;
 }
 
 export function createSaleCanceledEvent(

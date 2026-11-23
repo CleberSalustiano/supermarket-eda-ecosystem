@@ -3,9 +3,12 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { Response } from 'express';
 
 import {
+  AuthorizationDeniedError,
   ConflictError,
+  DependencyUnavailableError,
   DomainValidationError,
-  ResourceNotFoundError
+  ResourceNotFoundError,
+  TooManyAttemptsError
 } from '@supermarket/shared-domain';
 
 import { AppLoggerService } from '../../logging/app-logger.service';
@@ -21,7 +24,24 @@ interface HttpErrorResponseBody {
   path: string;
   correlationId: string;
   timestamp: string;
+  code?: string;
 }
+
+type DomainErrorClass = abstract new (...args: never[]) => Error;
+
+/**
+ * Shared-domain errors and their HTTP status. Only these errors expose their
+ * `code` in the response body, so unmapped errors (driver or system errors
+ * that also carry a `code`) never leak internals in a 500 response.
+ */
+const DOMAIN_ERROR_HTTP_STATUSES: ReadonlyArray<readonly [DomainErrorClass, HttpStatus]> = [
+  [DomainValidationError, HttpStatus.BAD_REQUEST],
+  [AuthorizationDeniedError, HttpStatus.FORBIDDEN],
+  [ResourceNotFoundError, HttpStatus.NOT_FOUND],
+  [ConflictError, HttpStatus.CONFLICT],
+  [TooManyAttemptsError, HttpStatus.TOO_MANY_REQUESTS],
+  [DependencyUnavailableError, HttpStatus.SERVICE_UNAVAILABLE]
+];
 
 @Catch()
 export class GlobalHttpExceptionFilter implements ExceptionFilter {
@@ -36,6 +56,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       request[CORRELATION_ID_CONTEXT_KEY] ??
       resolveCorrelationId(request.headers['x-correlation-id']);
     const message = resolveExceptionMessage(exception);
+    const code = resolveExceptionCode(exception);
 
     if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
@@ -51,7 +72,8 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       message,
       path: request.originalUrl ?? request.url,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      ...(code === undefined ? {} : { code })
     };
 
     response.status(statusCode).json(responseBody);
@@ -88,17 +110,23 @@ function resolveHttpStatusCode(exception: unknown): number {
     return exception.getStatus();
   }
 
-  if (exception instanceof DomainValidationError) {
-    return HttpStatus.BAD_REQUEST;
+  return resolveDomainErrorHttpStatus(exception) ?? HttpStatus.INTERNAL_SERVER_ERROR;
+}
+
+function resolveExceptionCode(exception: unknown): string | undefined {
+  if (resolveDomainErrorHttpStatus(exception) === undefined) {
+    return undefined;
   }
 
-  if (exception instanceof ResourceNotFoundError) {
-    return HttpStatus.NOT_FOUND;
-  }
+  const { code } = exception as { code?: unknown };
 
-  if (exception instanceof ConflictError) {
-    return HttpStatus.CONFLICT;
-  }
+  return typeof code === 'string' ? code : undefined;
+}
 
-  return HttpStatus.INTERNAL_SERVER_ERROR;
+function resolveDomainErrorHttpStatus(exception: unknown): HttpStatus | undefined {
+  const mapping = DOMAIN_ERROR_HTTP_STATUSES.find(
+    ([errorConstructor]) => exception instanceof errorConstructor
+  );
+
+  return mapping?.[1];
 }
