@@ -13,6 +13,9 @@ import {
   SERVICE_ENVIRONMENT
 } from '@supermarket/shared-infra';
 
+import { ChangeEmployeePinUseCase } from '#/application/use-cases/change-employee-pin.use-case';
+import { DeactivateEmployeeUseCase } from '#/application/use-cases/deactivate-employee.use-case';
+import { ListEmployeesUseCase } from '#/application/use-cases/list-employees.use-case';
 import { RegisterEmployeeUseCase } from '#/application/use-cases/register-employee.use-case';
 import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
 import { UpdateProductPriceUseCase } from '#/application/use-cases/update-product-price.use-case';
@@ -48,6 +51,9 @@ describe('management-service catalog flow', () => {
       controllers: [HealthController, ProductsController, EmployeesController],
       providers: [
         AppLoggerService,
+        ChangeEmployeePinUseCase,
+        DeactivateEmployeeUseCase,
+        ListEmployeesUseCase,
         RegisterEmployeeUseCase,
         RegisterProductUseCase,
         UpdateProductPriceUseCase,

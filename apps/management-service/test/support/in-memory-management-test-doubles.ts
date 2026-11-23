@@ -11,6 +11,11 @@ import {
   SalePaymentMethod
 } from '@supermarket/shared-domain';
 
+import {
+  ApprovalThrottle,
+  type ApprovalThrottlePrimitives,
+  type ApprovalThrottleScope
+} from '#/domain/entities/approval-throttle.entity';
 import { CashReconciliation } from '#/domain/entities/cash-reconciliation.entity';
 import { DailyFinancialConsolidation } from '#/domain/entities/daily-financial-consolidation.entity';
 import { Employee } from '#/domain/entities/employee.entity';
@@ -29,7 +34,16 @@ import type {
   StoredOutboxEvent
 } from '#/application/ports/outbox-event-repository.port';
 import type { DailyFinancialConsolidationRepositoryPort } from '#/domain/repositories/daily-financial-consolidation.repository';
-import type { EmployeeRepositoryPort } from '#/domain/repositories/employee.repository';
+import type { ApprovalThrottleRepositoryPort } from '#/domain/repositories/approval-throttle.repository';
+import type { ManagerApprovalAttempt } from '#/domain/entities/manager-approval-attempt.entity';
+import type { ManagerApprovalAttemptRepositoryPort } from '#/domain/repositories/manager-approval-attempt.repository';
+import type { EmployeeAuditEntry } from '#/domain/entities/employee-audit-entry.entity';
+import type { EmployeeAuditEntryRepositoryPort } from '#/domain/repositories/employee-audit-entry.repository';
+import type {
+  EmployeeListQuery,
+  EmployeeListResult,
+  EmployeeRepositoryPort
+} from '#/domain/repositories/employee.repository';
 import type { CashReconciliationRepositoryPort } from '#/domain/repositories/cash-reconciliation.repository';
 import type { FinancialEntryRepositoryPort } from '#/domain/repositories/financial-entry.repository';
 import type {
@@ -89,6 +103,30 @@ export class InMemoryEmployeeRepository implements EmployeeRepositoryPort {
     );
   }
 
+  async findById(tenantId: string, employeeId: string): Promise<Employee | null> {
+    return this.items.get(buildKey(tenantId, employeeId)) ?? null;
+  }
+
+  async list(tenantId: string, query: EmployeeListQuery): Promise<EmployeeListResult> {
+    const matching = [...this.items.values()]
+      .filter((item) => {
+        const state = item.toPrimitives();
+
+        return (
+          state.tenantId === tenantId &&
+          (query.status === 'all' || state.active === (query.status === 'active'))
+        );
+      })
+      .sort((left, right) =>
+        left.toPrimitives().employeeCode.localeCompare(right.toPrimitives().employeeCode)
+      );
+
+    return {
+      items: matching.slice(query.offset, query.offset + query.limit),
+      total: matching.length
+    };
+  }
+
   async save(employee: Employee): Promise<void> {
     const employeeState = employee.toPrimitives();
 
@@ -97,6 +135,99 @@ export class InMemoryEmployeeRepository implements EmployeeRepositoryPort {
 
   all(): Employee[] {
     return [...this.items.values()];
+  }
+}
+
+export class InMemoryEmployeeAuditEntryRepository implements EmployeeAuditEntryRepositoryPort {
+  private readonly items: EmployeeAuditEntry[] = [];
+
+  async append(entry: EmployeeAuditEntry): Promise<void> {
+    this.items.push(entry);
+  }
+
+  all(): EmployeeAuditEntry[] {
+    return [...this.items];
+  }
+}
+
+/**
+ * Stores throttles by value: a loaded throttle changes only when it is saved,
+ * as with the database. `lockedKeys` records every `findForUpdate` call in order.
+ */
+export class InMemoryApprovalThrottleRepository implements ApprovalThrottleRepositoryPort {
+  private readonly items = new Map<string, ApprovalThrottlePrimitives>();
+  readonly lockedKeys: string[] = [];
+  readonly clearedKeys: string[] = [];
+
+  async findForUpdate(
+    tenantId: string,
+    scope: ApprovalThrottleScope,
+    subject: string
+  ): Promise<ApprovalThrottle> {
+    const key = buildThrottleKey(tenantId, scope, subject);
+
+    this.lockedKeys.push(key);
+
+    if (!this.items.has(key)) {
+      this.items.set(key, ApprovalThrottle.open({ tenantId, scope, subject }).toPrimitives());
+    }
+
+    return toApprovalThrottle(this.items.get(key)!);
+  }
+
+  async save(throttle: ApprovalThrottle): Promise<void> {
+    const state = throttle.toPrimitives();
+
+    this.items.set(buildThrottleKey(state.tenantId, state.scope, state.subject), state);
+  }
+
+  async clear(tenantId: string, scope: ApprovalThrottleScope, subject: string): Promise<void> {
+    const key = buildThrottleKey(tenantId, scope, subject);
+    const state = this.items.get(key);
+
+    this.clearedKeys.push(key);
+
+    if (state) {
+      const throttle = toApprovalThrottle(state);
+
+      throttle.clear();
+      this.items.set(key, throttle.toPrimitives());
+    }
+  }
+
+  get(tenantId: string, scope: ApprovalThrottleScope, subject: string): ApprovalThrottle | null {
+    const state = this.items.get(buildThrottleKey(tenantId, scope, subject));
+
+    return state ? toApprovalThrottle(state) : null;
+  }
+}
+
+function buildThrottleKey(tenantId: string, scope: ApprovalThrottleScope, subject: string): string {
+  return `${tenantId}|${scope}|${subject}`;
+}
+
+function toApprovalThrottle(state: ApprovalThrottlePrimitives): ApprovalThrottle {
+  return ApprovalThrottle.rehydrate({
+    tenantId: state.tenantId,
+    scope: state.scope,
+    subject: state.subject,
+    failureCount: state.failureCount,
+    windowStartedAt: state.windowStartedAt === null ? null : new Date(state.windowStartedAt),
+    lockedUntil: state.lockedUntil === null ? null : new Date(state.lockedUntil)
+  });
+}
+
+export class InMemoryManagerApprovalAttemptRepository
+  implements ManagerApprovalAttemptRepositoryPort
+{
+  private readonly items: ManagerApprovalAttempt[] = [];
+
+  async append(attempt: ManagerApprovalAttempt): Promise<void> {
+    this.items.push(attempt);
+  }
+
+  all(): ManagerApprovalAttempt[] {
+    return [...this.items];
   }
 }
 
@@ -452,24 +583,30 @@ export class InMemoryOutboxEventRepository implements OutboxEventRepositoryPort 
 }
 
 export class InMemoryManagementTransactionRunner implements ManagementTransactionRunnerPort {
+  readonly approvalThrottleRepository = new InMemoryApprovalThrottleRepository();
   readonly cashReconciliationRepository = new InMemoryCashReconciliationRepository();
   readonly dailyFinancialConsolidationRepository =
     new InMemoryDailyFinancialConsolidationRepository();
   readonly productRepository = new InMemoryProductRepository();
+  readonly employeeAuditEntryRepository = new InMemoryEmployeeAuditEntryRepository();
   readonly employeeRepository = new InMemoryEmployeeRepository();
   readonly financialEntryRepository = new InMemoryFinancialEntryRepository();
   readonly inventoryLossEntryRepository = new InMemoryInventoryLossEntryRepository();
+  readonly managerApprovalAttemptRepository = new InMemoryManagerApprovalAttemptRepository();
   readonly outboxEventRepository = new InMemoryOutboxEventRepository();
   readonly processedEventRepository = new InMemoryProcessedEventRepository();
 
   async execute<T>(work: (context: ManagementTransactionContext) => Promise<T>): Promise<T> {
     return work({
+      approvalThrottleRepository: this.approvalThrottleRepository,
       cashReconciliationRepository: this.cashReconciliationRepository,
       dailyFinancialConsolidationRepository: this.dailyFinancialConsolidationRepository,
       productRepository: this.productRepository,
+      employeeAuditEntryRepository: this.employeeAuditEntryRepository,
       employeeRepository: this.employeeRepository,
       financialEntryRepository: this.financialEntryRepository,
       inventoryLossEntryRepository: this.inventoryLossEntryRepository,
+      managerApprovalAttemptRepository: this.managerApprovalAttemptRepository,
       outboxEventRepository: this.outboxEventRepository,
       processedEventRepository: this.processedEventRepository
     });
@@ -479,6 +616,10 @@ export class InMemoryManagementTransactionRunner implements ManagementTransactio
 export class FakeCredentialHasher implements CredentialHasherPort {
   async hash(rawValue: string): Promise<string> {
     return `hashed:${rawValue}`;
+  }
+
+  async verify(rawValue: string, storedHash: string | null): Promise<boolean> {
+    return storedHash === `hashed:${rawValue}`;
   }
 }
 

@@ -1,9 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { SERVICE_ENVIRONMENT, AppLoggerService } from '@supermarket/shared-infra';
+import {
+  AppLoggerService,
+  INTERNAL_API_TOKENS,
+  InternalApiTokenGuard,
+  SERVICE_ENVIRONMENT
+} from '@supermarket/shared-infra';
 
 import { CaptureInventoryLossUseCase } from './application/use-cases/capture-inventory-loss.use-case';
+import { ChangeEmployeePinUseCase } from './application/use-cases/change-employee-pin.use-case';
+import { DeactivateEmployeeUseCase } from './application/use-cases/deactivate-employee.use-case';
+import { ListEmployeesUseCase } from './application/use-cases/list-employees.use-case';
 import { RegisterEmployeeUseCase } from './application/use-cases/register-employee.use-case';
 import { RegisterProductUseCase } from './application/use-cases/register-product.use-case';
 import { CompensateCanceledSaleUseCase } from './application/use-cases/compensate-canceled-sale.use-case';
@@ -11,8 +19,10 @@ import { ConsolidateCompletedSaleUseCase } from './application/use-cases/consoli
 import { GenerateProfitAndLossReportUseCase } from './application/use-cases/generate-profit-and-loss-report.use-case';
 import { ReconcileRegisterClosureUseCase } from './application/use-cases/reconcile-register-closure.use-case';
 import { UpdateProductPriceUseCase } from './application/use-cases/update-product-price.use-case';
+import { VerifyManagerApprovalUseCase } from './application/use-cases/verify-manager-approval.use-case';
 import { KafkaManagementSalesConsumerService } from './infrastructure/events/kafka-management-sales-consumer.service';
 import { CREDENTIAL_HASHER } from './application/ports/credential-hasher.port';
+import { MANAGER_APPROVAL_OPTIONS } from './application/ports/manager-approval.options';
 import { MANAGEMENT_EVENT_PUBLISHER } from './application/ports/management-event-publisher.port';
 import { MANAGEMENT_TRANSACTION_RUNNER } from './application/ports/management-transaction-runner.port';
 import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port';
@@ -22,12 +32,15 @@ import { KafkaManagementEventPublisherService } from './infrastructure/events/ka
 import { ReliableOutboxEventRelayService } from './infrastructure/events/reliable-outbox-event-relay.service';
 import { HealthController } from './interfaces/http/health.controller';
 import { EmployeesController } from './interfaces/http/employees.controller';
+import { InternalManagerApprovalsController } from './interfaces/http/internal-manager-approvals.controller';
 import { ProductsController } from './interfaces/http/products.controller';
 import { ReportsController } from './interfaces/http/reports.controller';
 import { InventoryLossRegisteredConsumer } from './interfaces/messaging/inventory-loss-registered.consumer';
 import { RegisterClosedConsumer } from './interfaces/messaging/register-closed.consumer';
 import { SaleCanceledConsumer } from './interfaces/messaging/sale-canceled.consumer';
 import { SaleCompletedConsumer } from './interfaces/messaging/sale-completed.consumer';
+import { createManagementInternalApiTokens } from './infrastructure/config/internal-api.options';
+import { createManagerApprovalOptions } from './infrastructure/config/manager-approval.options';
 import { managementServiceEnvironment } from './infrastructure/config/management-service.environment';
 import { createOutboxReplayOptions } from './infrastructure/config/outbox-replay.options';
 import { managementServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
@@ -39,10 +52,19 @@ import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-repla
 
 @Module({
   imports: [TypeOrmModule.forRoot(managementServiceDataSourceOptions)],
-  controllers: [HealthController, ProductsController, EmployeesController, ReportsController],
+  controllers: [
+    HealthController,
+    ProductsController,
+    EmployeesController,
+    ReportsController,
+    InternalManagerApprovalsController
+  ],
   providers: [
     AppLoggerService,
     CaptureInventoryLossUseCase,
+    ChangeEmployeePinUseCase,
+    DeactivateEmployeeUseCase,
+    ListEmployeesUseCase,
     CompensateCanceledSaleUseCase,
     ConsolidateCompletedSaleUseCase,
     GenerateProfitAndLossReportUseCase,
@@ -51,6 +73,8 @@ import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-repla
     RegisterEmployeeUseCase,
     RegisterProductUseCase,
     UpdateProductPriceUseCase,
+    VerifyManagerApprovalUseCase,
+    InternalApiTokenGuard,
     InventoryLossRegisteredConsumer,
     KafkaManagementEventPublisherService,
     KafkaManagementSalesConsumerService,
@@ -65,6 +89,16 @@ import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-repla
     {
       provide: SERVICE_ENVIRONMENT,
       useValue: managementServiceEnvironment
+    },
+    {
+      // Fails fast at boot when MANAGEMENT_INTERNAL_API_TOKENS is missing or
+      // invalid outside NODE_ENV=test.
+      provide: INTERNAL_API_TOKENS,
+      useValue: createManagementInternalApiTokens()
+    },
+    {
+      provide: MANAGER_APPROVAL_OPTIONS,
+      useValue: createManagerApprovalOptions()
     },
     {
       provide: CREDENTIAL_HASHER,

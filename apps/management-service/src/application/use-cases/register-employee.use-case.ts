@@ -18,6 +18,7 @@ import type { ManagementTransactionRunnerPort } from '../ports/management-transa
 import { MANAGEMENT_TRANSACTION_RUNNER } from '../ports/management-transaction-runner.port';
 import type { OutboxEventRelayPort } from '../ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_RELAY } from '../ports/outbox-event-relay.port';
+import { EmployeeAuditEntry } from '#/domain/entities/employee-audit-entry.entity';
 import { Employee } from '#/domain/entities/employee.entity';
 
 @Injectable()
@@ -53,7 +54,7 @@ export class RegisterEmployeeUseCase {
       active: employeeState.active
     } satisfies EmployeeRegisteredEventPayload);
 
-    await this.transactionRunner.execute(async ({ employeeRepository, outboxEventRepository }) => {
+    await this.transactionRunner.execute(async ({ employeeAuditEntryRepository, employeeRepository, outboxEventRepository }) => {
       const existingEmployee = await employeeRepository.findByEmployeeCode(
         employeeState.tenantId,
         employeeState.employeeCode
@@ -66,6 +67,15 @@ export class RegisterEmployeeUseCase {
       }
 
       await employeeRepository.save(employee);
+      await employeeAuditEntryRepository.append(
+        EmployeeAuditEntry.record({
+          id: randomUUID(),
+          tenantId: employeeState.tenantId,
+          employeeId: employeeState.id,
+          employeeCode: employeeState.employeeCode,
+          action: 'REGISTERED'
+        })
+      );
       await outboxEventRepository.save(integrationEvent);
     });
 
