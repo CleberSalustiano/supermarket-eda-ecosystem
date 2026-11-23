@@ -7,13 +7,14 @@ const path = require('node:path');
 
 const infra = require('./infra');
 const paths = require('./paths');
+const { ensureInternalApiToken } = require('./internal-api-token');
 const { checkPrerequisites } = require('./prerequisites');
 const processes = require('./processes');
 const { seedLocalData } = require('./seed');
 const services = require('./services');
 const { renderTestData } = require('./test-data-report');
 
-const COMMANDS = ['up', 'down', 'status', 'seed'];
+const COMMANDS = ['up', 'down', 'status', 'seed', 'stop'];
 const FLAGS = ['--reset', '--skip-build', '--with-mobile', '--no-frontend', '--no-seed', '--no-start-docker', '--purge'];
 const BASE_URLS = {
   checkout: 'http://localhost:3001',
@@ -25,6 +26,9 @@ function parseArgs(argv) {
   const [command, ...flags] = argv;
   if (!COMMANDS.includes(command)) {
     throw new Error(`Usage: cli.js <${COMMANDS.join('|')}> [${FLAGS.join('] [')}]`);
+  }
+  if (command === 'stop') {
+    return { command, serviceName: flags[0], extraArgs: flags.slice(1) };
   }
   const unknown = flags.filter((flag) => !FLAGS.includes(flag));
   if (unknown.length > 0) {
@@ -94,6 +98,7 @@ function saveSeedState(state) {
 function deleteSeedFiles() {
   fs.rmSync(paths.SEED_STATE_FILE, { force: true });
   fs.rmSync(paths.TEST_DATA_FILE, { force: true });
+  fs.rmSync(paths.INTERNAL_API_TOKEN_FILE, { force: true });
 }
 
 async function stopEverything({ purge }) {
@@ -126,6 +131,18 @@ async function down({ purge }) {
   console.log(stopped.length > 0 ? `Stopped: ${stopped.join(', ')}` : 'Nothing was running.');
 }
 
+async function stopOne(serviceName) {
+  const valid = services.SERVICES.map((service) => service.name);
+  if (!valid.includes(serviceName)) {
+    console.error(`Usage: cli.js stop <${valid.join('|')}>`);
+    process.exitCode = 2;
+    return false;
+  }
+  const stopped = await processes.stopProcess(serviceName);
+  console.log(stopped ? `Stopped: ${serviceName}` : `${serviceName} was not running.`);
+  return true;
+}
+
 function makeSeedLogger() {
   fs.mkdirSync(paths.LOG_DIR, { recursive: true });
   const file = path.join(paths.LOG_DIR, 'seed.log');
@@ -137,6 +154,7 @@ function makeSeedLogger() {
 
 async function runSeed({ withFrontend, withMobile }) {
   progress('Seeding test data');
+  ensureInternalApiToken();
   const data = JSON.parse(fs.readFileSync(paths.SEED_DATA_FILE, 'utf8'));
   const log = makeSeedLogger();
   let state;
@@ -228,6 +246,7 @@ async function up(options) {
     throw new StepError('Starting infra', infraResult.logPath);
   }
 
+  ensureInternalApiToken();
   await startServices(options);
   const withFrontend = options.withFrontend && startFrontend(options);
   if (options.seed) {
@@ -278,6 +297,14 @@ async function main(argv) {
   if (options.command === 'down') {
     return down(options);
   }
+  if (options.command === 'stop') {
+    if (options.extraArgs.length > 0) {
+      console.error('Usage: cli.js stop <service-name> (one service only)');
+      process.exitCode = 2;
+      return undefined;
+    }
+    return stopOne(options.serviceName);
+  }
   if (options.command === 'status') {
     return status();
   }
@@ -289,7 +316,7 @@ async function main(argv) {
 
 if (require.main === module) {
   main(process.argv.slice(2)).then(
-    () => process.exit(0),
+    () => process.exit(process.exitCode ?? 0),
     (error) => {
       reportFailure(error);
       process.exit(1);

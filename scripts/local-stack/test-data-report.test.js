@@ -32,3 +32,13 @@ test('report marks unknown ids and omits web URLs in backend-only mode', () => {
   assert.ok(report.includes('unknown'));
   assert.equal(report.includes('http://localhost:4101'), false);
 });
+
+test('report describes the real manager approval and has no leftover placeholder wording or token reference', () => {
+  const report = renderTestData({ data, state: { employees: {}, products: {} }, today: '2026-11-22' });
+
+  assert.ok(report.includes('Manager approval (cancel a paid or completed sale)'));
+  assert.ok(report.includes('MANAGER-01'));
+  assert.ok(report.includes('ADMIN-01'));
+  assert.ok(report.includes('5 wrong PINs lock the code for 15 minutes'));
+  assert.equal(/provision|validated by the backend|internal-api-token/i.test(report), false);
+});
