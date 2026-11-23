@@ -17,7 +17,6 @@
   "supplierInvoice": { "supplierReference": "SEED-INV-0001" },
   "checkoutSession": {
     "registerId": "register-01",
-    "openingFloatAmount": "150.00",
-    "managerApprovalCode": "MANAGER-01"
+    "openingFloatAmount": "150.00"
   }
 }

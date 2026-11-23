@@ -5,6 +5,7 @@ import { SalePaymentMethod } from '@supermarket/shared-domain';
 
 import type { SaleRepositoryPort } from '#/domain/repositories/sale.repository';
 import { Sale } from '#/domain/entities/sale.entity';
+import type { ManagerApprovalPrimitives } from '#/domain/value-objects/manager-approval';
 import { SaleItemTypeormEntity } from '../entities/sale-item.typeorm-entity';
 import { SaleTypeormEntity } from '../entities/sale.typeorm-entity';
 import {
@@ -28,6 +29,24 @@ export class TypeormSaleRepository implements SaleRepositoryPort {
     });
 
     return entity ? toDomain(entity) : null;
+  }
+
+  async findByIdForUpdate(tenantId: string, saleId: string): Promise<Sale | null> {
+    // Lock only the sale row: FOR UPDATE cannot target the outer join that the
+    // eager items relation adds. The items are then read under the same lock.
+    const lockedSale = await this.repositoryAccessor
+      .getRepository(SaleTypeormEntity)
+      .createQueryBuilder('sale')
+      .select('sale.id', 'id')
+      .where({ id: saleId, tenantId })
+      .setLock('pessimistic_write')
+      .getRawOne<{ id: string }>();
+
+    if (!lockedSale) {
+      return null;
+    }
+
+    return this.findById(tenantId, saleId);
   }
 
   async hasNonTerminalBySessionId(tenantId: string, sessionId: string): Promise<boolean> {
@@ -61,6 +80,9 @@ export class TypeormSaleRepository implements SaleRepositoryPort {
       completedAt: saleState.completedAt ? new Date(saleState.completedAt) : null,
       canceledAt: saleState.canceledAt ? new Date(saleState.canceledAt) : null,
       cancellationReason: saleState.cancellationReason,
+      cancellationApprovedByEmployeeId: saleState.cancellationApproval?.employeeId ?? null,
+      cancellationApprovedByEmployeeCode: saleState.cancellationApproval?.employeeCode ?? null,
+      cancellationApprovedByFullName: saleState.cancellationApproval?.fullName ?? null,
       totalItemsQuantity: saleState.totalItemsQuantity,
       subtotal: saleState.subtotal,
       total: saleState.total,
@@ -104,6 +126,7 @@ function toDomain(entity: SaleTypeormEntity): Sale {
     completedAt: entity.completedAt,
     canceledAt: entity.canceledAt,
     cancellationReason: entity.cancellationReason,
+    cancellationApproval: toCancellationApproval(entity),
     totalItemsQuantity: entity.totalItemsQuantity,
     subtotal: entity.subtotal,
     total: entity.total,
@@ -119,4 +142,20 @@ function toDomain(entity: SaleTypeormEntity): Sale {
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt
   });
+}
+
+function toCancellationApproval(entity: SaleTypeormEntity): ManagerApprovalPrimitives | null {
+  if (
+    entity.cancellationApprovedByEmployeeId === null &&
+    entity.cancellationApprovedByEmployeeCode === null &&
+    entity.cancellationApprovedByFullName === null
+  ) {
+    return null;
+  }
+
+  return {
+    employeeId: entity.cancellationApprovedByEmployeeId ?? '',
+    employeeCode: entity.cancellationApprovedByEmployeeCode ?? '',
+    fullName: entity.cancellationApprovedByFullName ?? ''
+  };
 }

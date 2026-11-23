@@ -33,6 +33,14 @@ describe('RegisterEmployeeUseCase', () => {
     });
     expect(transactionRunner.employeeRepository.all()[0]?.toPrimitives().pinHash).toBe('hashed:123456');
     expect(transactionRunner.outboxEventRepository.all()).toHaveLength(1);
+    expect(
+      transactionRunner.employeeAuditEntryRepository.all().map((entry) => entry.toPrimitives())
+    ).toEqual([
+      expect.objectContaining({ employeeCode: 'MG-01', action: 'REGISTERED' })
+    ]);
+    expect(JSON.stringify(transactionRunner.employeeAuditEntryRepository.all())).not.toContain(
+      '123456'
+    );
   });
 
   it('rejects duplicate employee codes inside the same tenant', async () => {

@@ -6,6 +6,7 @@ import { SERVICE_ENVIRONMENT, AppLoggerService } from '@supermarket/shared-infra
 
 import { CHECKOUT_EVENT_PUBLISHER } from './application/ports/checkout-event-publisher.port';
 import { CHECKOUT_TRANSACTION_RUNNER } from './application/ports/checkout-transaction-runner.port';
+import { MANAGER_APPROVAL_VERIFIER } from './application/ports/manager-approval-verifier.port';
 import { OUTBOX_EVENT_RELAY } from './application/ports/outbox-event-relay.port';
 import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event-repository.port';
 import { OUTBOX_REPLAY_OPTIONS } from './application/ports/outbox-replay.options';
@@ -27,11 +28,17 @@ import { PosSessionsController } from './interfaces/http/pos-sessions.controller
 import { ProductCatalogController } from './interfaces/http/product-catalog.controller';
 import { SalesController } from './interfaces/http/sales.controller';
 import { checkoutServiceEnvironment } from './infrastructure/config/checkout-service.environment';
+import {
+  createManagementApprovalClientOptions,
+  MANAGEMENT_APPROVAL_CLIENT_OPTIONS,
+  type ManagementApprovalClientOptions
+} from './infrastructure/config/management-approval-client.options';
 import { createOutboxReplayOptions } from './infrastructure/config/outbox-replay.options';
 import { checkoutServiceDataSourceOptions } from './infrastructure/config/typeorm.config';
 import { KafkaCheckoutCatalogConsumerService } from './infrastructure/events/kafka-checkout-catalog-consumer.service';
 import { KafkaCheckoutEventPublisherService } from './infrastructure/events/kafka-checkout-event-publisher.service';
 import { ReliableOutboxEventRelayService } from './infrastructure/events/reliable-outbox-event-relay.service';
+import { ManagementApprovalVerifierAdapter } from './infrastructure/http/management-approval-verifier.adapter';
 import { OutboxReplayWorkerService } from './infrastructure/workers/outbox-replay-worker.service';
 import { TypeormCheckoutTransactionRunner } from './infrastructure/persistence/typeorm/typeorm-checkout-transaction-runner';
 import { TypeormOutboxEventRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-outbox-event.repository';
@@ -76,6 +83,16 @@ import { ProductPriceUpdatedConsumer } from './interfaces/messaging/product-pric
     {
       provide: OUTBOX_REPLAY_OPTIONS,
       useValue: createOutboxReplayOptions()
+    },
+    {
+      provide: MANAGEMENT_APPROVAL_CLIENT_OPTIONS,
+      useValue: createManagementApprovalClientOptions(checkoutServiceEnvironment.nodeEnvironment)
+    },
+    {
+      provide: MANAGER_APPROVAL_VERIFIER,
+      useFactory: (options: ManagementApprovalClientOptions, logger: AppLoggerService) =>
+        new ManagementApprovalVerifierAdapter(options, logger),
+      inject: [MANAGEMENT_APPROVAL_CLIENT_OPTIONS, AppLoggerService]
     },
     {
       provide: POS_SESSION_REPOSITORY,

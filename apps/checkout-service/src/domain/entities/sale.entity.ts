@@ -7,6 +7,8 @@ import {
 
 import type { RehydrateSaleItemInput, SaleItemPrimitives } from './sale-item.entity';
 import { SaleItem } from './sale-item.entity';
+import type { ManagerApprovalPrimitives } from '../value-objects/manager-approval';
+import { ManagerApproval } from '../value-objects/manager-approval';
 
 export type SaleStatus = 'OPEN' | 'PAID' | 'COMPLETED' | 'CANCELED';
 
@@ -22,6 +24,7 @@ export interface SalePrimitives {
   completedAt: string | null;
   canceledAt: string | null;
   cancellationReason: string | null;
+  cancellationApproval: ManagerApprovalPrimitives | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -50,6 +53,8 @@ interface RehydrateSaleInput {
   completedAt: Date | null;
   canceledAt: Date | null;
   cancellationReason: string | null;
+  /** Absent or null for sales that were not canceled with a manager approval. */
+  cancellationApproval?: ManagerApprovalPrimitives | null;
   totalItemsQuantity: number;
   subtotal: number;
   total: number;
@@ -76,9 +81,14 @@ interface RegisterPaymentInput {
 
 interface CancelSaleInput {
   reason: string;
-  managerApprovalCode?: string;
+  /** Required when the sale is PAID or COMPLETED; ignored for OPEN sales. */
+  approval?: ManagerApproval;
   canceledAt?: Date;
   updatedAt?: Date;
+}
+
+interface AssertCancelableInput {
+  approvalProvided: boolean;
 }
 
 export class Sale {
@@ -94,6 +104,7 @@ export class Sale {
     private completedAt: Date | null,
     private canceledAt: Date | null,
     private cancellationReason: string | null,
+    private cancellationApproval: ManagerApproval | null,
     private items: SaleItem[],
     private totalItemsQuantity: number,
     private subtotal: number,
@@ -112,6 +123,7 @@ export class Sale {
       normalizeIdentifier(input.tenantId, 'Tenant id'),
       normalizeIdentifier(input.sessionId, 'POS session id'),
       'OPEN',
+      null,
       null,
       null,
       null,
@@ -142,6 +154,7 @@ export class Sale {
       input.completedAt ? ensureDate(input.completedAt, 'Completed at') : null,
       input.canceledAt ? ensureDate(input.canceledAt, 'Canceled at') : null,
       normalizeNullableRequiredString(input.cancellationReason, 'Cancellation reason'),
+      input.cancellationApproval ? ManagerApproval.create(input.cancellationApproval) : null,
       items,
       normalizeAggregateQuantity(input.totalItemsQuantity, 'Sale total items quantity'),
       normalizeAggregateTotal(input.subtotal, 'Sale subtotal'),
@@ -265,7 +278,12 @@ export class Sale {
     this.updatedAt = normalizedCompletedAt;
   }
 
-  cancel(input: CancelSaleInput): void {
+  /** Paid and completed sales can only be canceled with a verified manager approval. */
+  requiresManagerApprovalToCancel(): boolean {
+    return this.status === 'PAID' || this.status === 'COMPLETED';
+  }
+
+  assertCancelable(input: AssertCancelableInput): void {
     if (this.status === 'CANCELED') {
       throw new ConflictError(`Sale ${this.id} is already canceled for tenant ${this.tenantId}`);
     }
@@ -274,16 +292,23 @@ export class Sale {
       throw new ConflictError(`Sale ${this.id} cannot be canceled from status ${this.status}`);
     }
 
-    if (this.status !== 'OPEN' && !input.managerApprovalCode?.trim()) {
+    if (this.requiresManagerApprovalToCancel() && !input.approvalProvided) {
       throw new ConflictError(
         `Sale ${this.id} requires manager approval before cancellation after payment`
       );
     }
+  }
 
+  cancel(input: CancelSaleInput): void {
+    this.assertCancelable({ approvalProvided: input.approval !== undefined });
+
+    const reason = normalizeRequiredString(input.reason, 'Cancellation reason');
     const canceledAt = ensureDate(input.canceledAt ?? new Date(), 'Canceled at');
+    const approval = this.requiresManagerApprovalToCancel() ? input.approval ?? null : null;
 
     this.status = 'CANCELED';
-    this.cancellationReason = normalizeRequiredString(input.reason, 'Cancellation reason');
+    this.cancellationReason = reason;
+    this.cancellationApproval = approval;
     this.canceledAt = canceledAt;
     this.updatedAt = ensureDate(input.updatedAt ?? canceledAt, 'Updated at');
   }
@@ -307,6 +332,7 @@ export class Sale {
       completedAt: this.completedAt?.toISOString() ?? null,
       canceledAt: this.canceledAt?.toISOString() ?? null,
       cancellationReason: this.cancellationReason,
+      cancellationApproval: this.cancellationApproval?.toPrimitives() ?? null,
       totalItemsQuantity: this.totalItemsQuantity,
       subtotal: this.subtotal,
       total: this.total,
@@ -359,7 +385,8 @@ export class Sale {
         this.paidAt ||
         this.completedAt ||
         this.canceledAt ||
-        this.cancellationReason
+        this.cancellationReason ||
+        this.cancellationApproval
       ) {
         throw new DomainValidationError('Open sales cannot contain payment or completion data');
       }
@@ -397,6 +424,12 @@ export class Sale {
         );
       }
 
+      if (this.cancellationApproval && !containsAnyPaymentData) {
+        throw new DomainValidationError(
+          `Canceled sale ${this.id} cannot have a manager approval without payment data`
+        );
+      }
+
       return;
     }
 
@@ -423,7 +456,7 @@ export class Sale {
       throw new DomainValidationError(`Only completed sales may contain a completion timestamp`);
     }
 
-    if (this.canceledAt || this.cancellationReason) {
+    if (this.canceledAt || this.cancellationReason || this.cancellationApproval) {
       throw new DomainValidationError(`Non-canceled sale ${this.id} cannot contain cancellation data`);
     }
   }

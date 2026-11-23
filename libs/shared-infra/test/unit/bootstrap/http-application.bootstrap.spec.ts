@@ -1,7 +1,13 @@
 import { AppLoggerService } from '#/logging/app-logger.service';
 import { bootstrapHttpApplication } from '#/bootstrap/http-application.bootstrap';
 import type { ServiceEnvironment } from '#/config/service-environment';
+import type { INestApplication } from '@nestjs/common';
+import type {
+  CorsOptions,
+  CorsOptionsDelegate
+} from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
+import type { Request } from 'express';
 
 jest.mock('@nestjs/core', () => ({
   NestFactory: {
@@ -43,22 +49,91 @@ describe('bootstrapHttpApplication', () => {
 
     expect(enableCors).toHaveBeenCalledTimes(1);
 
-    const [corsOptions] = enableCors.mock.calls[0] ?? [];
+    const [corsOptionsDelegate] = enableCors.mock.calls[0] ?? [];
+
+    expect(typeof corsOptionsDelegate).toBe('function');
+
+    const corsOptions = await resolveCorsOptions(corsOptionsDelegate, '/sales');
 
     expect(corsOptions).toMatchObject({
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS']
     });
     expect(typeof corsOptions.origin).toBe('function');
 
-    const allowedOriginResult = await resolveCorsDecision(corsOptions.origin, 'http://127.0.0.1:4201');
-    const blockedOriginResult = await resolveCorsDecision(corsOptions.origin, 'https://unknown.example.com');
-    const noOriginResult = await resolveCorsDecision(corsOptions.origin, undefined);
+    const originResolver = corsOptions.origin as OriginResolver;
+    const allowedOriginResult = await resolveCorsDecision(originResolver, 'http://127.0.0.1:4201');
+    const blockedOriginResult = await resolveCorsDecision(originResolver, 'https://unknown.example.com');
+    const noOriginResult = await resolveCorsDecision(originResolver, undefined);
 
     expect(allowedOriginResult).toBe(true);
     expect(blockedOriginResult).toBe(false);
     expect(noOriginResult).toBe(true);
     expect(listen).toHaveBeenCalledWith(3001);
     expect(logger.setServiceContext).toHaveBeenCalledWith('checkout-service');
+  });
+
+  it('sends no cors headers for internal paths by default', async () => {
+    const enableCors = jest.fn();
+
+    createMock.mockResolvedValue(
+      createApplicationMock({
+        enableCors,
+        listen: jest.fn().mockResolvedValue(undefined),
+        logger: createLoggerMock()
+      })
+    );
+
+    await bootstrapHttpApplication({
+      rootModule: TestRootModule,
+      environment: createEnvironment()
+    });
+
+    const [corsOptionsDelegate] = enableCors.mock.calls[0] ?? [];
+
+    for (const path of [
+      '/internal/manager-approvals/verifications',
+      '/internal/manager-approvals/verifications?tenantId=1',
+      '/INTERNAL/manager-approvals/verifications',
+      '//internal/manager-approvals/verifications',
+      '/%69nternal/manager-approvals/verifications'
+    ]) {
+      await expect(resolveCorsOptions(corsOptionsDelegate, path)).resolves.toEqual({
+        origin: false
+      });
+    }
+
+    const publicOptions = await resolveCorsOptions(corsOptionsDelegate, '/internals-report');
+
+    await expect(
+      resolveCorsDecision(publicOptions.origin as OriginResolver, 'http://127.0.0.1:4201')
+    ).resolves.toBe(true);
+  });
+
+  it('uses the configured excluded path prefixes', async () => {
+    const enableCors = jest.fn();
+
+    createMock.mockResolvedValue(
+      createApplicationMock({
+        enableCors,
+        listen: jest.fn().mockResolvedValue(undefined),
+        logger: createLoggerMock()
+      })
+    );
+
+    await bootstrapHttpApplication({
+      rootModule: TestRootModule,
+      environment: createEnvironment(),
+      corsExcludedPathPrefixes: ['/private/']
+    });
+
+    const [corsOptionsDelegate] = enableCors.mock.calls[0] ?? [];
+
+    await expect(resolveCorsOptions(corsOptionsDelegate, '/private/report')).resolves.toEqual({
+      origin: false
+    });
+    await expect(
+      resolveCorsOptions(corsOptionsDelegate, '/internal/manager-approvals/verifications')
+    ).resolves.toMatchObject({ origin: expect.any(Function) });
   });
 
   it('skips cors when disabled explicitly', async () => {
@@ -94,8 +169,8 @@ function createApplicationMock({
   enableCors: jest.Mock;
   listen: jest.Mock;
   logger: ReturnType<typeof createLoggerMock>;
-}) {
-  return {
+}): INestApplication {
+  const application = {
     get: jest.fn().mockImplementation((token: unknown) => {
       if (token === AppLoggerService) {
         return logger;
@@ -111,6 +186,8 @@ function createApplicationMock({
     enableCors,
     listen
   };
+
+  return application as unknown as INestApplication;
 }
 
 function createEnvironment(overrides?: Partial<ServiceEnvironment>): ServiceEnvironment {
@@ -129,7 +206,8 @@ function createEnvironment(overrides?: Partial<ServiceEnvironment>): ServiceEnvi
       name: 'checkout_service',
       user: 'checkout_user',
       password: 'checkout_password',
-      ssl: false
+      ssl: false,
+      migrationsRun: false
     },
     kafka: {
       brokers: ['localhost:19092'],
@@ -149,8 +227,30 @@ function createLoggerMock() {
   };
 }
 
+type OriginResolver = (
+  requestOrigin: string | undefined,
+  callback: (error: Error | null, allow?: boolean) => void
+) => void;
+
+async function resolveCorsOptions(
+  corsOptionsDelegate: CorsOptionsDelegate<Request>,
+  url: string
+): Promise<CorsOptions> {
+  return new Promise((resolve, reject) => {
+    corsOptionsDelegate({ url, originalUrl: url } as Request, (error, options) => {
+      if (error) {
+        reject(error);
+
+        return;
+      }
+
+      resolve(options);
+    });
+  });
+}
+
 async function resolveCorsDecision(
-  originResolver: (requestOrigin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => void,
+  originResolver: OriginResolver,
   requestOrigin: string | undefined
 ): Promise<boolean | undefined> {
   return new Promise((resolve, reject) => {

@@ -69,7 +69,7 @@ function renderTestData({ data, state, today, withFrontend = true, withMobile = 
     `- registerId: \`${session.registerId}\``,
     `- operatorId: \`${cashierId ?? 'unknown (CASHIER-01 id unavailable)'}\` (checkout does not validate operators yet; the pre-filled default \`2b6b69a3-1c2e-442e-928a-8f0614aa7d0e\` also works)`,
     `- Opening float: \`${session.openingFloatAmount}\``,
-    `- Manager approval code: \`${session.managerApprovalCode}\` (provisional, not validated by the backend)`,
+    '- Manager approval (cancel a paid or completed sale): employee code `MANAGER-01` or `ADMIN-01` plus that employee\'s PIN from the table above. Checked by management-service; 5 wrong PINs lock the code for 15 minutes, 10 failures lock the register for 15 minutes.',
     '',
     '## Products',
     renderProducts(data, state),

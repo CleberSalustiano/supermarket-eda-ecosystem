@@ -26,6 +26,9 @@ export class EmployeeTypeormEntity {
   @Column('boolean', { default: true })
   active!: boolean;
 
+  @Column('timestamptz', { nullable: true })
+  deactivatedAt!: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 

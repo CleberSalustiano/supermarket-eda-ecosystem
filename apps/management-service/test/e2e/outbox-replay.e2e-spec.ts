@@ -14,6 +14,9 @@ import {
 
 import { RegisterProductUseCase } from '#/application/use-cases/register-product.use-case';
 import { UpdateProductPriceUseCase } from '#/application/use-cases/update-product-price.use-case';
+import { ChangeEmployeePinUseCase } from '#/application/use-cases/change-employee-pin.use-case';
+import { DeactivateEmployeeUseCase } from '#/application/use-cases/deactivate-employee.use-case';
+import { ListEmployeesUseCase } from '#/application/use-cases/list-employees.use-case';
 import { RegisterEmployeeUseCase } from '#/application/use-cases/register-employee.use-case';
 import { ReplayPendingOutboxEventsUseCase } from '#/application/use-cases/replay-pending-outbox-events.use-case';
 import { CREDENTIAL_HASHER } from '#/application/ports/credential-hasher.port';
@@ -61,6 +64,9 @@ describe('management-service outbox replay flow', () => {
       controllers: [ProductsController, EmployeesController],
       providers: [
         AppLoggerService,
+        ChangeEmployeePinUseCase,
+        DeactivateEmployeeUseCase,
+        ListEmployeesUseCase,
         RegisterEmployeeUseCase,
         RegisterProductUseCase,
         ReplayPendingOutboxEventsUseCase,

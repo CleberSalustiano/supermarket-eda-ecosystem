@@ -1,4 +1,8 @@
-import type { EmployeeRepositoryPort } from '#/domain/repositories/employee.repository';
+import type {
+  EmployeeListQuery,
+  EmployeeListResult,
+  EmployeeRepositoryPort
+} from '#/domain/repositories/employee.repository';
 import { Employee } from '#/domain/entities/employee.entity';
 import { EmployeeTypeormEntity } from '../entities/employee.typeorm-entity';
 import {
@@ -24,6 +28,30 @@ export class TypeormEmployeeRepository implements EmployeeRepositoryPort {
     return entity ? toDomain(entity) : null;
   }
 
+  async findById(tenantId: string, employeeId: string): Promise<Employee | null> {
+    const entity = await this.repositoryAccessor
+      .getRepository(EmployeeTypeormEntity)
+      .findOne({ where: { tenantId, id: employeeId } });
+
+    return entity ? toDomain(entity) : null;
+  }
+
+  async list(tenantId: string, query: EmployeeListQuery): Promise<EmployeeListResult> {
+    const [entities, total] = await this.repositoryAccessor
+      .getRepository(EmployeeTypeormEntity)
+      .findAndCount({
+        where: {
+          tenantId,
+          ...(query.status === 'all' ? {} : { active: query.status === 'active' })
+        },
+        order: { employeeCode: 'ASC' },
+        take: query.limit,
+        skip: query.offset
+      });
+
+    return { items: entities.map(toDomain), total };
+  }
+
   async save(employee: Employee): Promise<void> {
     const employeeState = employee.toPrimitives();
 
@@ -35,6 +63,8 @@ export class TypeormEmployeeRepository implements EmployeeRepositoryPort {
       role: employeeState.role,
       pinHash: employeeState.pinHash,
       active: employeeState.active,
+      deactivatedAt:
+        employeeState.deactivatedAt === null ? null : new Date(employeeState.deactivatedAt),
       createdAt: new Date(employeeState.createdAt),
       updatedAt: new Date(employeeState.updatedAt)
     });
@@ -50,6 +80,7 @@ function toDomain(entity: EmployeeTypeormEntity): Employee {
     role: entity.role,
     pinHash: entity.pinHash,
     active: entity.active,
+    deactivatedAt: entity.deactivatedAt,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt
   });

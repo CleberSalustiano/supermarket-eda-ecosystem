@@ -170,3 +170,11 @@ test('catalog that never converges rejects naming the missing barcode', async ()
 
   await assert.rejects(run(fetchImpl), /missing barcodes: 1111/);
 });
+
+test('seed data no longer carries a free-text approval code in the session', () => {
+  const seedData = require('./seed-data.json');
+
+  assert.deepEqual(Object.keys(seedData.checkoutSession).sort(), ['openingFloatAmount', 'registerId']);
+  assert.ok(seedData.employees.some((employee) => employee.role === 'MANAGER'));
+  assert.ok(seedData.employees.some((employee) => employee.role === 'ADMIN'));
+});
